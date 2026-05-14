@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase
+import 'package:firebase_auth/firebase_auth.dart';
+// Ensure this import matches your interests_screen.dart file name
 import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
 
 class MenteeAuthScreen extends StatefulWidget {
@@ -11,9 +12,8 @@ class MenteeAuthScreen extends StatefulWidget {
 
 class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
   bool isLogin = true;
-  bool _isLoading = false; // Track loading state
+  bool _isLoading = false;
 
-  // Controllers to capture user input
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
@@ -28,30 +28,41 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
 
   // --- FIREBASE AUTH LOGIC ---
   Future<void> _handleAuth() async {
+    // Basic validation for offline development
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in all fields")),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
-    
+
     try {
       if (isLogin) {
-        // Sign In logic
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
       } else {
-        // Sign Up logic
-        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            );
+
+        await userCredential.user?.updateDisplayName(
+          _nameController.text.trim(),
         );
-        
-        // Update Display Name if signing up
-        await userCredential.user?.updateDisplayName(_nameController.text.trim());
       }
 
       if (mounted) {
+        // STEP 3 OF YOUR FLOW: Navigate to Interests/Course Selection
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const CourseSelectionScreen()),
+          MaterialPageRoute(
+            builder: (context) => const CourseSelectionScreen(), // Matches your flow plan
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -78,84 +89,83 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
             Text(
               isLogin ? "Welcome Back!" : "Create Account",
               style: const TextStyle(
-                fontSize: 28, 
-                fontWeight: FontWeight.bold, 
-                color: Color(0xFF333697)
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF333697),
               ),
             ),
             const SizedBox(height: 10),
             Text(
-              isLogin 
-                  ? "Login to continue your learning journey." 
+              isLogin
+                  ? "Login to continue your learning journey."
                   : "Join MentorLinks to find your perfect mentor.",
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 40),
 
-            // 1. FULL NAME (Only show if signing up)
             if (!isLogin) ...[
               TextField(
-                controller: _nameController, // Added controller
+                controller: _nameController,
                 decoration: const InputDecoration(
                   labelText: "Full Name",
                   prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
             ],
 
-            // 2. EMAIL
             TextField(
-              controller: _emailController, // Added controller
+              controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: "Email Address",
                 prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
               ),
             ),
             const SizedBox(height: 20),
 
-            // 3. PASSWORD
             TextField(
-              controller: _passwordController, // Added controller
+              controller: _passwordController,
               obscureText: true,
               decoration: const InputDecoration(
                 labelText: "Password",
                 prefixIcon: Icon(Icons.lock_outline),
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-              ),
-            ),
-            
-            if (isLogin)
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text("Forgot Password?", style: TextStyle(color: Colors.grey)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
               ),
-            
-            const SizedBox(height: 20),
+            ),
 
-            // 4. MAIN ACTION BUTTON
+            const SizedBox(height: 30),
+
             SizedBox(
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _handleAuth, // Call auth logic
+                onPressed: _isLoading ? null : _handleAuth,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF333697),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 2,
                 ),
-                child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(
-                      isLogin ? "LOGIN" : "SIGN UP",
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        isLogin ? "LOGIN" : "SIGN UP",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
               ),
             ),
 
@@ -166,7 +176,10 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
                 Expanded(child: Divider(thickness: 1, color: Colors.grey[200])),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 15),
-                  child: Text("Or continue with", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  child: Text(
+                    "Or continue with",
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
                 ),
                 Expanded(child: Divider(thickness: 1, color: Colors.grey[200])),
               ],
@@ -176,16 +189,8 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
 
             _socialButton(
               label: "Continue with Google",
-              icon: Icons.g_mobiledata, 
-              onTap: () {}, // Handled via Firebase Google Sign-In later
-            ),
-            
-            const SizedBox(height: 12),
-
-            _socialButton(
-              label: "Continue with Apple",
-              icon: Icons.apple,
-              onTap: () {},
+              icon: Icons.g_mobiledata,
+              onTap: () {}, 
             ),
 
             const SizedBox(height: 30),
@@ -194,14 +199,16 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
                 onPressed: () => setState(() => isLogin = !isLogin),
                 child: RichText(
                   text: TextSpan(
-                    text: isLogin ? "New to MentorLinks? " : "Already have an account? ",
+                    text: isLogin
+                        ? "New to MentorLinks? "
+                        : "Already have an account? ",
                     style: const TextStyle(color: Colors.grey),
                     children: [
                       TextSpan(
                         text: isLogin ? "Create Account" : "Login",
                         style: const TextStyle(
-                          color: Color(0xFF333697), 
-                          fontWeight: FontWeight.bold
+                          color: Color(0xFF333697),
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
@@ -215,7 +222,11 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
     );
   }
 
-  Widget _socialButton({required String label, required IconData icon, required VoidCallback onTap}) {
+  Widget _socialButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return SizedBox(
       width: double.infinity,
       height: 55,
@@ -223,12 +234,18 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
         onPressed: onTap,
         icon: Icon(icon, color: Colors.black, size: 26),
         label: Text(
-          label, 
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500, fontSize: 16)
+          label,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w500,
+            fontSize: 16,
+          ),
         ),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: Colors.grey[300]!),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );

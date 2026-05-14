@@ -87,7 +87,7 @@ class WalletScreen extends StatelessWidget {
   Widget _actionBtn(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha:0.2), borderRadius: BorderRadius.circular(10)),
       child: Row(
         children: [
           Icon(icon, color: Colors.white, size: 18),
@@ -106,7 +106,7 @@ class WalletScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF333697).withOpacity(0.2)),
+          border: Border.all(color: const Color(0xFF333697).withValues(alpha:0.2)),
         ),
         child: Center(
           child: Text(amount, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333697))),

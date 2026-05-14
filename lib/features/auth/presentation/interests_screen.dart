@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_home_screen.dart  ';
+import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dashboard.dart';
 
 class CourseSelectionScreen extends StatefulWidget {
   const CourseSelectionScreen({super.key});
@@ -9,7 +9,7 @@ class CourseSelectionScreen extends StatefulWidget {
 }
 
 class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
-  // Define our professional course list with icons
+  // Your professional course list remains exactly the same
   final List<Map<String, dynamic>> _courses = [
     {"name": "Flutter Dev", "icon": Icons.smartphone, "color": Colors.blue},
     {"name": "IoT Systems", "icon": Icons.developer_board, "color": Colors.orange},
@@ -43,7 +43,6 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
             ),
             const SizedBox(height: 20),
             
-            // Search bar for courses
             TextField(
               decoration: InputDecoration(
                 hintText: "Search for a course...",
@@ -55,11 +54,10 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
             ),
             const SizedBox(height: 25),
 
-            // Grid of Courses
             Expanded(
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, // Two columns
+                  crossAxisCount: 2,
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
                   childAspectRatio: 1.1,
@@ -77,7 +75,7 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
                         borderRadius: BorderRadius.circular(20),
                         border: isSelected ? null : Border.all(color: Colors.grey[200]!),
                         boxShadow: [
-                          if (!isSelected) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+                          if (!isSelected) BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius: 10)
                         ],
                       ),
                       child: Column(
@@ -104,7 +102,7 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
               ),
             ),
 
-            // Bottom Action Button
+            // STEP 4: FINAL TRANSITION
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: SizedBox(
@@ -112,10 +110,12 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
                 height: 55,
                 child: ElevatedButton(
                   onPressed: _selectedCourse == null ? null : () {
-                    // Navigate to Discovery Screen
-                    Navigator.push(
+                    // PROFESSIONAL FIX: We use pushAndRemoveUntil here.
+                    // This clears the navigation memory so the Dashboard becomes the new "Root".
+                    Navigator.pushAndRemoveUntil(
                       context, 
-                      MaterialPageRoute(builder: (context) => const MenteeHomeScreen())
+                      MaterialPageRoute(builder: (context) => const MenteeDashboard()),
+                      (route) => false, // This makes it impossible to go "back" to onboarding
                     );
                   },
                   style: ElevatedButton.styleFrom(
