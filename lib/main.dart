@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // Needed for the web check
+import 'package:flutter/foundation.dart' show kIsWeb; 
 import 'package:mentorlinks_app_project/features/auth/logic/auth_gate.dart';
+
+// --- NEW IMPORTS FOR NAVIGATION ---
+import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
+import 'package:mentorlinks_app_project/features/auth/presentation/tier_selection_screen.dart';
+import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (kIsWeb) {
-    // Option B: Web Configuration using the keys you just found
     await Firebase.initializeApp(
       options: const FirebaseOptions(
         apiKey: "AIzaSyCeQEU7H2p4cfo329zyytBFVmPB9uWB7Ac",
@@ -22,7 +26,6 @@ void main() async {
       ),
     );
   } else {
-    // This handles your itel A669W and Windows Desktop automatically
     await Firebase.initializeApp();
   }
 
@@ -49,7 +52,15 @@ class MentorLinksApp extends StatelessWidget {
           primary: const Color(0xFF333697),
         ),
       ),
+      // AuthGate handles the initial session check
       home: const AuthGate(), 
+      
+      // --- ROUTES DEFINITION ---
+      routes: {
+        '/interests': (context) => const CourseSelectionScreen(),
+        '/tier-selection': (context) => const TierSelectionScreen(),
+        '/mentee-dashboard': (context) => const MenteeDashboard(),
+      },
     );
   }
 }
