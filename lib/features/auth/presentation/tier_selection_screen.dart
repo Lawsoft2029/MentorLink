@@ -64,6 +64,22 @@ class TierSelectionScreen extends StatelessWidget {
               isPopular: true,
               onTap: () => _selectTier(context, "Premium"),
             ),
+            const SizedBox(height: 20),
+
+              // --- ENTERPRISE CARD (The New Addition) ---
+              _buildTierCard(
+                context,
+                title: "Enterprise",
+                price: "Custom",
+                description: "For Hubs, Schools, and Teams.",
+                features: ["Bulk User Licenses", "Admin Dashboard", "Private Mentorship", "Custom API Access"],
+                color: Colors.purpleAccent,
+                onTap: () {
+                  // For Enterprise, we usually route to a contact form or a custom logic
+                  _selectTier(context, "Enterprise");
+                },
+              ),
+              const SizedBox(height: 40),
           ],
         ),
       ),
