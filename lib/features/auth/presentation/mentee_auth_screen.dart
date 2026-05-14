@@ -57,11 +57,11 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
       }
 
       if (mounted) {
-        // STEP 3 OF YOUR FLOW: Navigate to Interests/Course Selection
+        // UPDATED NAVIGATION: Moving to your InterestsScreen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const CourseSelectionScreen(), // Matches your flow plan
+            builder: (context) => const CourseSelectionScreen(), 
           ),
         );
       }

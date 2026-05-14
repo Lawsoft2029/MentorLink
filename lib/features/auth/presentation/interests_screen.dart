@@ -1,4 +1,7 @@
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
+import 'package:mentorlinks_app_project/features/auth/presentation/tier_selection_screen.dart';
 import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dashboard.dart';
 
 class CourseSelectionScreen extends StatefulWidget {
@@ -114,7 +117,7 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
                     // This clears the navigation memory so the Dashboard becomes the new "Root".
                     Navigator.pushAndRemoveUntil(
                       context, 
-                      MaterialPageRoute(builder: (context) => const MenteeDashboard()),
+                      MaterialPageRoute(builder: (context) => const TierSelectionScreen()),
                       (route) => false, // This makes it impossible to go "back" to onboarding
                     );
                   },
