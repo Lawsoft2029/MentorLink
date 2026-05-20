@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Added to stream user wallet updates
 import 'wallet_screen.dart';
 import 'vault_screen.dart';
 import 'live_session_screen.dart';
@@ -51,8 +52,22 @@ class _MenteeDashboardState extends State<MenteeDashboard> {
 class HomeScreenContent extends StatelessWidget {
   const HomeScreenContent({super.key});
 
+  // Function to simulate earning money by watching an ad
+  Future<void> _watchAdAndEarn() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
+      // Increment the balance field by 0.05 dollars
+      await userDoc.update({
+        'walletBalanceUSD': FieldValue.increment(0.05),
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('MentorLinks Dashboard'),
@@ -66,51 +81,132 @@ class HomeScreenContent extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStatCards(),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                "Available Mentors",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            // Placeholder for your Mentor List
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 3,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: const CircleAvatar(backgroundColor: Color(0xFF333697), child: Icon(Icons.person, color: Colors.white)),
-                  title: const Text("Expert Developer"),
-                  subtitle: const Text("Flutter • Dart • Firebase"),
-                  trailing: TextButton(
-                    onPressed: () {
-                      // Logic to start a session will go here
-                    },
-                    child: const Text("Connect"),
+      // Wrapped in a StreamBuilder to make your variables listen natively to Firebase changes
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: uid != null 
+            ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
+            : null,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // Fallbacks if data doesn't exist yet or loading fails
+          double walletBalanceUSD = 0.00;
+          String userTier = 'Freemium';
+          String learningHours = "12 hrs"; 
+
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+            userTier = data['userTier'] ?? 'Freemium';
+            
+            // Map totalMinutesLearned tracking to a display string if it exists
+            if (data['totalMinutesLearned'] != null) {
+              int mins = data['totalMinutesLearned'];
+              learningHours = mins >= 60 ? "${(mins / 60).toStringAsFixed(1)} hrs" : "$mins mins";
+            }
+          }
+
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Display the stat items dynamically based on Firestore calculations
+                _buildStatCards(learningHours, walletBalanceUSD),
+                
+                // --- IN-APP FREEMIUM MONETIZATION SIMULATOR BANNER ---
+                if (userTier == 'Freemium')
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.greenAccent.withAlpha(30),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.greenAccent, width: 1),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.bolt, color: Colors.greenAccent),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Freemium Plan Active",
+                                style: TextStyle(color: Colors.green[300], fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            "Watch short ads to load tokens into your operational wallet instantly.",
+                            style: TextStyle(fontSize: 13, color: Colors.black87),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _watchAdAndEarn,
+                              icon: const Icon(Icons.play_circle_filled, color: Colors.white),
+                              label: const Text("Simulate Ad (Earn \$0.05)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF333697),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
                   ),
-                );
-              },
+
+                // FIX: Removed the invalid cascade split syntax here
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    "Available Mentors",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                
+                // Placeholder for your Mentor List
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 3,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      leading: const CircleAvatar(backgroundColor: Color(0xFF333697), child: Icon(Icons.person, color: Colors.white)),
+                      title: const Text("Expert Developer"),
+                      subtitle: const Text("Flutter • Dart • Firebase"),
+                      trailing: TextButton(
+                        onPressed: () {
+                          // Logic to start a session will go here
+                        },
+                        child: const Text("Connect"),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildStatCards() {
+  Widget _buildStatCards(String learningHours, double walletBalance) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          _statItem("Learning", "12 hrs", Colors.blue),
+          _statItem("Learning", learningHours, Colors.blue),
           const SizedBox(width: 10),
-          _statItem("Wallet", "₦45,000", Colors.green),
+          // Clean dynamic presentation showing calculations as real USD values
+          _statItem("Wallet Balance", "\$${walletBalance.toStringAsFixed(2)}", Colors.green),
         ],
       ),
     );
@@ -121,7 +217,7 @@ class HomeScreenContent extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: color.withValues(alpha:0.1),
+          color: color.withAlpha(25),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
