@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class WalletScreen extends StatelessWidget {
   const WalletScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
       appBar: AppBar(
@@ -12,48 +16,64 @@ class WalletScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // 1. LEARNER BALANCE CARD
-            _buildBalanceCard(),
+      // Wrapped body with StreamBuilder to pull live operational telemetry from Firestore
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: uid != null
+            ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
+            : null,
+        builder: (context, snapshot) {
+          double activeBalance = 0.00;
 
-            const SizedBox(height: 30),
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            activeBalance = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+          }
 
-            // 2. FUNDING OPTIONS (For the Learner to add money)
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Top up Balance", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 15),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
               children: [
-                _topUpOption("₦2k"),
-                _topUpOption("₦5k"),
-                _topUpOption("₦10k"),
+                // 1. DYNAMIC LEARNER BALANCE CARD (Passes live value down)
+                _buildBalanceCard(activeBalance),
+
+                const SizedBox(height: 30),
+
+                // 2. FUNDING OPTIONS (For the Learner to add money)
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text("Top up Balance", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _topUpOption("\$5.00"),
+                    _topUpOption("\$10.00"),
+                    _topUpOption("\$20.00"),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                // 3. SPENDING LOG (Where the learner's money went)
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text("Learning Expenses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 15),
+                _historyItem("Session: Flutter Debugging", "-\$0.45", "10 mins ago", Colors.redAccent),
+                _historyItem("Session: IoT Hardware Setup", "-\$1.20", "Today, 10:00 AM", Colors.redAccent),
+                _historyItem("Simulated Ad Reward", "+\$0.05", "Real-time Tracker", Colors.green),
               ],
             ),
-
-            const SizedBox(height: 30),
-
-            // 3. SPENDING LOG (Where the learner's money went)
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Learning Expenses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 15),
-            _historyItem("Session: Flutter Debugging", "-₦450", "10 mins ago", Colors.redAccent),
-            _historyItem("Session: IoT Hardware Setup", "-₦1,200", "Today, 10:00 AM", Colors.redAccent),
-            _historyItem("Wallet Funded", "+₦5,000", "Yesterday", Colors.green),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildBalanceCard() {
+  // Modified constructor to pass live database stream value straight into layout view
+  Widget _buildBalanceCard(double balance) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(25),
@@ -70,7 +90,8 @@ class WalletScreen extends StatelessWidget {
         children: [
           const Text("Current Balance", style: TextStyle(color: Colors.white70, fontSize: 16)),
           const SizedBox(height: 8),
-          const Text("₦7,340.50", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+          // Outputs real-time matching currency matching home tab logic
+          Text("\$${balance.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
           const SizedBox(height: 25),
           Row(
             children: [
@@ -87,7 +108,10 @@ class WalletScreen extends StatelessWidget {
   Widget _actionBtn(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha:0.2), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2), 
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
         children: [
           Icon(icon, color: Colors.white, size: 18),
@@ -106,7 +130,7 @@ class WalletScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF333697).withValues(alpha:0.2)),
+          border: Border.all(color: const Color(0xFF333697).withOpacity(0.2)),
         ),
         child: Center(
           child: Text(amount, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333697))),
