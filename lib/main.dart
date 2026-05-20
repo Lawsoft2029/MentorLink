@@ -55,9 +55,9 @@ class MentorLinksApp extends StatelessWidget {
       // AuthGate handles the initial session check
       home: const AuthGate(), 
       
-      // --- ROUTES DEFINITION ---
+      // --- ROUTES DEFINED CORRECTLY ---
       routes: {
-        '/interests': (context) => const CourseSelectionScreen(),
+        '/interests': (context) => const CourseSelectionScreen(), 
         '/tier-selection': (context) => const TierSelectionScreen(),
         '/mentee-dashboard': (context) => const MenteeDashboard(),
       },

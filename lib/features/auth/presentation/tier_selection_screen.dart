@@ -9,10 +9,14 @@ class TierSelectionScreen extends StatelessWidget {
   Future<void> _selectTier(BuildContext context, String tier) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      // UPDATED: Added initialization variables for the economy/wallet framework
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'userTier': tier,
         'isPremium': tier != 'Freemium',
-      });
+        'walletBalanceUSD': tier == 'Freemium' ? 0.00 : 20.00, // $0 for Free, $20 baseline starter value for others
+        'totalMinutesLearned': 0,
+      }, SetOptions(merge: true));
+      
       // Navigate to your Dashboard
       if (context.mounted) {
         Navigator.pushReplacementNamed(context, '/mentee-dashboard');
@@ -66,20 +70,20 @@ class TierSelectionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-              // --- ENTERPRISE CARD (The New Addition) ---
-              _buildTierCard(
-                context,
-                title: "Enterprise",
-                price: "Custom",
-                description: "For Hubs, Schools, and Teams.",
-                features: ["Bulk User Licenses", "Admin Dashboard", "Private Mentorship", "Custom API Access"],
-                color: Colors.purpleAccent,
-                onTap: () {
-                  // For Enterprise, we usually route to a contact form or a custom logic
-                  _selectTier(context, "Enterprise");
-                },
-              ),
-              const SizedBox(height: 40),
+            // --- ENTERPRISE CARD (The New Addition) ---
+            _buildTierCard(
+              context,
+              title: "Enterprise",
+              price: "Custom",
+              description: "For Hubs, Schools, and Teams.",
+              features: ["Bulk User Licenses", "Admin Dashboard", "Private Mentorship", "Custom API Access"],
+              color: Colors.purpleAccent,
+              onTap: () {
+                // For Enterprise, we usually route to a contact form or a custom logic
+                _selectTier(context, "Enterprise");
+              },
+            ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
