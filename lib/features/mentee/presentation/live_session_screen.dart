@@ -12,9 +12,12 @@ import 'package:highlight/languages/dart.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_auth/firebase_auth.dart'; // Added for real-time live wallet connection
+import 'package:cloud_firestore/cloud_firestore.dart'; // Added for streaming token updates
 
 class LiveSessionScreen extends StatefulWidget {
-  final double ratePerSecond = 0.50;
+  // UPDATED: Standardized to match the exact mentor connection rate per minute ($0.10 / 60 seconds)
+  final double ratePerSecond = 0.10 / 60;
   const LiveSessionScreen({super.key});
 
   @override
@@ -239,7 +242,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   // --- AUTOMATED PROJECT LOGIC ---
   Future<void> _handleExternalProject() async {
-    // AUTOMATION: Automatically generate the link for the Mentor
     String projectLink = "https://github.com/MentorLinks/session_share_active";
 
     setState(() {
@@ -338,13 +340,63 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     }
   }
 
+  // UPDATED: Automated state machine updates Firestore and verifies balance checks every second
   void _startSession() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted)
-        setState(() {
-          _seconds++;
-          _totalCost += widget.ratePerSecond;
-        });
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      
+      if (uid != null) {
+        final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
+        
+        try {
+          // 1. Fetch current cloud state configuration
+          final docSnapshot = await userDoc.get();
+          if (docSnapshot.exists) {
+            final data = docSnapshot.data() as Map<String, dynamic>;
+            double currentBalance = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+            String tier = data['userTier'] ?? 'Freemium';
+
+            // 2. Logic condition: Stop execution cycle if Freemium users run out of tokens
+            if (tier == 'Freemium' && currentBalance <= 0.0) {
+              _timer?.cancel();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: Colors.redAccent,
+                    content: Text("Session closed automatically: Insufficient Balance!"),
+                  ),
+                );
+                // Hard reset screen loop back to baseline Home tab
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+              return;
+            }
+
+            // 3. Increment operation costs if credentials pass verification parameters
+            if (mounted) {
+              setState(() {
+                _seconds++;
+                _totalCost += widget.ratePerSecond;
+              });
+            }
+
+            // 4. Update the collection profile path on Europe servers (Only deduct for Freemium users)
+            if (tier == 'Freemium') {
+              await userDoc.update({
+                'walletBalanceUSD': FieldValue.increment(-widget.ratePerSecond),
+                'totalMinutesLearned': FieldValue.increment(1 / 60),
+              });
+            } else {
+              // Premium/Enterprise users don't pay per second, but we track their learning runtime metrics
+              await userDoc.update({
+                'totalMinutesLearned': FieldValue.increment(1 / 60),
+              });
+            }
+          }
+        } catch (e) {
+          debugPrint("Operational background sync failed: $e");
+        }
+      }
     });
   }
 
@@ -374,11 +426,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           TextButton(
             onPressed: () async {
               await _saveFilesLocally();
-
-              // Add this exact line right here:
               if (!mounted) return;
-
-              // Now the Navigator call below will be "safe"
               Navigator.pop(context);
 
               setState(() {
@@ -517,18 +565,18 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       ),
       child: _isReady
           ? (kIsWeb
-                ? const Center(
-                    child: Text(
-                      "Agora Web Preview Active",
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                  )
-                : AgoraVideoView(
-                    controller: VideoViewController(
-                      rtcEngine: _engine,
-                      canvas: const VideoCanvas(uid: 0),
-                    ),
-                  ))
+              ? const Center(
+                  child: Text(
+                    "Agora Web Preview Active",
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                )
+              : AgoraVideoView(
+                  controller: VideoViewController(
+                    rtcEngine: _engine,
+                    canvas: const VideoCanvas(uid: 0),
+                  ),
+                ))
           : const Center(
               child: Icon(Icons.person, size: 80, color: Colors.white24),
             ),
@@ -541,7 +589,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
+        // ignore: deprecated_member_use
+        border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,12 +620,13 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     );
   }
 
+  // UPDATED: Changed currency formatting from ₦ to $ to align with Firestore variables
   Widget _buildMoneyMeter() {
     return Column(
       children: [
-        const Text("COST", style: TextStyle(color: Colors.grey, fontSize: 10)),
+        const Text("SESSION ACCRUED COST", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
         Text(
-          "₦${_totalCost.toStringAsFixed(2)}",
+          "\$${_totalCost.toStringAsFixed(4)}",
           style: const TextStyle(
             color: Colors.greenAccent,
             fontSize: 24,
