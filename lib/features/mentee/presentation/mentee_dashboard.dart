@@ -177,15 +177,51 @@ class HomeScreenContent extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: 3,
                   itemBuilder: (context, index) {
+                    // Simulating a standard operational connection rate ($0.10/min)
+                    const double mentorRatePerMin = 0.10;
+
                     return ListTile(
                       leading: const CircleAvatar(backgroundColor: Color(0xFF333697), child: Icon(Icons.person, color: Colors.white)),
                       title: const Text("Expert Developer"),
-                      subtitle: const Text("Flutter • Dart • Firebase"),
+                      subtitle: const Text("Flutter • Dart • Firebase\nRate: \$0.10/min"),
                       trailing: TextButton(
-                        onPressed: () {
-                          // Logic to start a session will go here
+                        onPressed: () async {
+                          // 1. Operational Verification: Validate baseline balance allocation
+                          if (walletBalanceUSD >= mentorRatePerMin) {
+                            if (uid != null) {
+                              // 2. State Deduction: Debit baseline token for 1 connection unit
+                              final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
+                              await userDoc.update({
+                                'walletBalanceUSD': FieldValue.increment(-mentorRatePerMin),
+                              });
+                            }
+
+                            // 3. Interface Routing: Access parent state to swap IndexedStack to Live (index 3)
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Deducting credit... Routing to Live Session room.")),
+                              );
+
+                              final parentState = context.findAncestorStateOfType<_MenteeDashboardState>();
+                              if (parentState != null) {
+                                parentState.setState(() {
+                                  parentState._selectedIndex = 3; // Swaps view tab seamlessly
+                                });
+                              }
+                            }
+                          } else {
+                            // 4. Insufficient Fallback: Prompt user to clear token block via ad generation
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: Colors.redAccent,
+                                  content: Text("Insufficient Balance! Simulate an ad to earn connection tokens."),
+                                ),
+                              );
+                            }
+                          }
                         },
-                        child: const Text("Connect"),
+                        child: const Text("Connect", style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     );
                   },
