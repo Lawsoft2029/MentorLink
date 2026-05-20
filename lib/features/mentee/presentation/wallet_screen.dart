@@ -109,6 +109,7 @@ class WalletScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
       decoration: BoxDecoration(
+        // ignore: deprecated_member_use
         color: Colors.white.withOpacity(0.2), 
         borderRadius: BorderRadius.circular(10),
       ),
@@ -130,6 +131,7 @@ class WalletScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          // ignore: deprecated_member_use
           border: Border.all(color: const Color(0xFF333697).withOpacity(0.2)),
         ),
         child: Center(

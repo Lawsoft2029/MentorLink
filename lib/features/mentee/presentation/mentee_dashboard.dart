@@ -204,6 +204,7 @@ class HomeScreenContent extends StatelessWidget {
 
                               final parentState = context.findAncestorStateOfType<_MenteeDashboardState>();
                               if (parentState != null) {
+                                // ignore: invalid_use_of_protected_member
                                 parentState.setState(() {
                                   parentState._selectedIndex = 3; // Swaps view tab seamlessly
                                 });
