@@ -75,8 +75,13 @@ class HomeScreenContent extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF333697)),
             onPressed: () async {
-              // This triggers the AuthGate to show the Welcome Screen
+              // 1. Logs the user out of the active global session state
               await FirebaseAuth.instance.signOut();
+              
+              // 2. FIX: Clears screen memory stack and routes back to authentication gate
+              if (context.mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+              }
             },
           ),
         ],
