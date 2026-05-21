@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Added to stream user wallet updates
+import 'package:mentorlinks_app_project/features/auth/presentation/welcome_screen.dart';
 import 'wallet_screen.dart';
 import 'vault_screen.dart';
 import 'live_session_screen.dart';
@@ -78,9 +79,12 @@ class HomeScreenContent extends StatelessWidget {
               // 1. Logs the user out of the active global session state
               await FirebaseAuth.instance.signOut();
               
-              // 2. FIX: Clears screen memory stack and routes back to authentication gate
+              // 2. FIXED: Explicitly drops user to WelcomeScreen and purges prior routing views
               if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                  (route) => false,
+                );
               }
             },
           ),
@@ -167,7 +171,7 @@ class HomeScreenContent extends StatelessWidget {
                     ),
                   ),
 
-                // FIX: Removed the invalid cascade split syntax here
+                // Padding framework for section header
                 const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Text(

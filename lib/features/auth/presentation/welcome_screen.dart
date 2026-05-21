@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'mentee_auth_screen.dart';
+// IMPORTANT: Once you create your mentor_auth_screen.dart, import it here!
+// import 'mentor_auth_screen.dart'; 
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -19,12 +21,12 @@ class WelcomeScreen extends StatelessWidget {
                 height: 120,
                 width: 120,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF333697).withValues(alpha:0.1),
+                  // ignore: deprecated_member_use
+                  color: const Color(0xFF333697).withOpacity(0.1), // Updated for stable API compatibility
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons
-                      .link, // Replace this icon with your Image.asset logo later
+                  Icons.link, // Replace this icon with your Image.asset logo later
                   size: 60,
                   color: Color(0xFF333697),
                 ),
@@ -63,7 +65,7 @@ class WelcomeScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => const MenteeAuthScreen(),
                       ),
-                    ); // We will navigate to Mentee Signup/Login next
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF333697),
@@ -85,7 +87,19 @@ class WelcomeScreen extends StatelessWidget {
                 height: 60,
                 child: OutlinedButton(
                   onPressed: () {
-                    // We will navigate to Mentor Signup/Login next
+                    // Placeholder navigation for the upcoming Mentor Verification and Authentication module
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Color(0xFF333697),
+                        content: Text("Routing to Mentor Vetting & Payout Portal..."),
+                      ),
+                    );
+                    
+                    // Future wiring implementation:
+                    // Navigator.push(
+                    //   context,
+                    //   MaterialPageRoute(builder: (context) => const MentorAuthScreen()),
+                    // );
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF333697), width: 2),
