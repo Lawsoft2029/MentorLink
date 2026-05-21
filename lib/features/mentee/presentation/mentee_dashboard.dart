@@ -70,7 +70,7 @@ class HomeScreenContent extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MentorLinks Dashboard'),
+        title: const Text('Mentee Dashboard'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF333697)),
