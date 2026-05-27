@@ -53,7 +53,7 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 60),
 
               // 4. ROLE CHOICE BUTTONS
-              // MENTEE BUTTON
+              // MENTEE BUTTON (Solid Indigo/Navy for Students)
               SizedBox(
                 width: double.infinity,
                 height: 60,
@@ -80,13 +80,12 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // MENTOR BUTTON
+              // MENTOR BUTTON (Premium Deep Teal for Educators)
               SizedBox(
                 width: double.infinity,
                 height: 60,
                 child: OutlinedButton(
                   onPressed: () {
-                    // UPDATED: Routes directly to the high-quality vetting gate checkpoint 
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -95,14 +94,15 @@ class WelcomeScreen extends StatelessWidget {
                     );
                   },
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF333697), width: 2),
+                    // UPDATED: Shifted from blue to deep educational teal accent borders
+                    side: const BorderSide(color: Color(0xFF00796B), width: 2),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
                   ),
                   child: const Text(
-                    "I want to Mentor",
-                    style: TextStyle(fontSize: 18, color: Color(0xFF333697)),
+                    "I am a Mentor", // UPDATED: Clear onboarding copy adjustment
+                    style: TextStyle(fontSize: 18, color: Color(0xFF00796B), fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
