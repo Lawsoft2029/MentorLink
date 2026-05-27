@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../auth/presentation/welcome_screen.dart'; // Direct route for clean log out
+import '../../auth/presentation/welcome_screen.dart';
 
 class MentorDashboard extends StatefulWidget {
   const MentorDashboard({super.key});
@@ -11,62 +11,118 @@ class MentorDashboard extends StatefulWidget {
 }
 
 class _MentorDashboardState extends State<MentorDashboard> {
-  bool _isOnline = false; // Tracks if the mentor is visible to students
+  bool _isOnline = false; // Internal tracking state for the toggle switch
+  bool _isSyncing = false; // Safe lock to prevent rapid spam clicking
 
-  // Function to simulate earning money by teaching a session unit
-  Future<void> _simulateTeachingEarnings() async {
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentOnlinePresence();
+  }
+
+  // Double check actual database state on boot so UI switch state never lies
+  Future<void> _fetchCurrentOnlinePresence() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
-      // Simulating a 10-minute session reward block ($1.00 gross revenue)
-      await userDoc.update({
-        'mentorEarningsUSD': FieldValue.increment(1.00),
-      });
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && mounted) {
+        final data = doc.data();
+        if (data != null) {
+          setState(() {
+            _isOnline = data['isOnline'] ?? false;
+          });
+        }
+      }
     }
   }
 
-  // Function to toggle the mentor's online availability state in Firestore
-  Future<void> _toggleOnlineStatus(bool value) async {
-    setState(() => _isOnline = value);
-    
+  // THE GLOBAL SYNC POOL ENGINE: Toggles presence flags across target endpoints
+  Future<void> _syncOnlinePresencePool(bool goOnline) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
-      await userDoc.update({
-        'isOnline': value,
+    if (uid == null) return;
+
+    setState(() {
+      _isOnline = goOnline;
+      _isSyncing = true;
+    });
+
+    final batch = FirebaseFirestore.instance.batch();
+    final userDocRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    final poolDocRef = FirebaseFirestore.instance.collection('available_mentors').doc(uid);
+
+    if (goOnline) {
+      // 1. Fetch mentor's current profile details to populate the discovery card
+      final profileSnapshot = await userDocRef.get();
+      final profileData = profileSnapshot.data() ?? {};
+
+      // 2. Queue Update: Set local user document flags
+      batch.update(userDocRef, {'isOnline': true});
+
+      // 3. Queue Set: Inject profile into global discovery pool for Mentees
+      batch.set(poolDocRef, {
+        'mentorId': uid,
+        'expertiseTag': profileData['expertiseTag'] ?? 'Expert Developer',
+        'bio': profileData['bio'] ?? '',
+        'connectionRatePerMin': profileData['connectionRatePerMin'] ?? 0.20,
+        'linkedinUrl': profileData['linkedinUrl'] ?? '',
+        'githubUrl': profileData['githubUrl'] ?? '',
+        'wentLiveAt': FieldValue.serverTimestamp(),
       });
-      
+    } else {
+      // 1. Queue Update: Set local user document offline
+      batch.update(userDocRef, {'isOnline': false});
+
+      // 2. Queue Delete: Obliterate record from active matching pool completely
+      batch.delete(poolDocRef);
+    }
+
+    try {
+      // Commit the database edits atomically in a single trip
+      await batch.commit();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: value ? Colors.green : Colors.grey,
-            content: Text(value ? "You are now live! Students can see you." : "You are now offline."),
+            backgroundColor: goOnline ? const Color(0xFF00796B) : Colors.blueGrey,
+            content: Text(goOnline ? "Presence Sync Active: You are visible to students!" : "Offline status propagated across the pool."),
             duration: const Duration(seconds: 2),
           ),
         );
       }
+    } catch (e) {
+      // Rollback UI switch position if connection drops out mid-write
+      setState(() => _isOnline = !goOnline);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(backgroundColor: Colors.redAccent, content: Text("Sync Failed: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    const mentorAccentColor = Color(0xFF00796B); // Unified clean teal theme
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mentor Workspace'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0.5,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFF333697)),
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () async {
-              // 1. Turn off online presence tracking flag before logging out safely
+              // Graceful Exit Guard: Erase mentor presence before token invalidation
               if (_isOnline) {
-                await _toggleOnlineStatus(false);
+                await _syncOnlinePresencePool(false);
               }
-              // 2. Clear authentication token state
               await FirebaseAuth.instance.signOut();
               
-              // 3. Clear workspace view memory and bounce back to entry gate
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const WelcomeScreen()),
@@ -77,106 +133,112 @@ class _MentorDashboardState extends State<MentorDashboard> {
           ),
         ],
       ),
-      body: StreamBuilder<DocumentSnapshot>(
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: uid != null
             ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
             : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: mentorAccentColor));
           }
 
           double mentorEarningsUSD = 0.00;
-          double connectionRatePerMin = 0.10;
-          String expertiseTag = "Flutter Developer";
+          double connectionRatePerMin = 0.20;
+          String expertiseTag = "Systems Engineer";
 
           if (snapshot.hasData && snapshot.data!.exists) {
-            final data = snapshot.data!.data() as Map<String, dynamic>;
-            mentorEarningsUSD = (data['mentorEarningsUSD'] ?? 0.0).toDouble();
-            connectionRatePerMin = (data['connectionRatePerMin'] ?? 0.10).toDouble();
-            expertiseTag = data['expertiseTag'] ?? 'Expert Systems Engineer';
+            // FIXED: Removed the redundant unnecessary cast syntax layer here
+            final data = snapshot.data!.data();
+            if (data != null) {
+              mentorEarningsUSD = (data['mentorEarningsUSD'] ?? 0.0).toDouble();
+              connectionRatePerMin = (data['connectionRatePerMin'] ?? 0.20).toDouble();
+              expertiseTag = data['expertiseTag'] ?? 'Expert Developer';
+            }
           }
 
           return SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- ONLINE/OFFLINE PRESENCE CARD ---
+                  // --- ONLINE/OFFLINE PRESENCE SYNC CARD ---
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
                       color: _isOnline 
-                          ? Colors.greenAccent.withValues(alpha: 0.15)
-                          : Colors.grey.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(15),
+                          ? mentorAccentColor.withValues(alpha: 0.08)
+                          : Colors.grey.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _isOnline ? Colors.greenAccent : Colors.grey.shade400,
-                        width: 1,
+                        color: _isOnline ? mentorAccentColor : Colors.grey.shade300,
+                        width: 1.5,
                       ),
                     ),
                     child: Row(
-                      // FIXED: Corrected layout parameter syntax mapping
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              Icons.circle,
-                              color: _isOnline ? Colors.green : Colors.grey,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 10),
+                            _isSyncing
+                                ? const SizedBox(
+                                    height: 14,
+                                    width: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: mentorAccentColor),
+                                  )
+                                : Icon(
+                                    Icons.circle,
+                                    color: _isOnline ? mentorAccentColor : Colors.grey,
+                                    size: 14,
+                                  ),
+                            const SizedBox(width: 12),
                             Text(
-                              _isOnline ? "Status: Accept Requests" : "Status: Dormant (Offline)",
+                              _isOnline ? "Live Pool Discovery: Active" : "Status: Hidden (Offline)",
                               style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: _isOnline ? Colors.green.shade700 : Colors.grey.shade700,
-                              ),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isOnline ? mentorAccentColor : Colors.grey.shade700),
                             ),
                           ],
                         ),
                         Switch(
                           value: _isOnline,
-                          // FIXED: Replaced deprecated activeColor configuration properties
-                          activeThumbColor: const Color(0xFF333697),
-                          activeTrackColor: const Color(0xFF333697).withValues(alpha: 0.4),
-                          onChanged: _toggleOnlineStatus,
+                          activeThumbColor: mentorAccentColor,
+                          activeTrackColor: mentorAccentColor.withValues(alpha: 0.3),
+                          onChanged: _isSyncing ? null : _syncOnlinePresencePool,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  // --- METRIC ROW ---
+                  // --- FINANCIAL ANALYTICS BANNER ---
                   Row(
                     children: [
-                      _mentorStatItem("Total Earnings", "\$${mentorEarningsUSD.toStringAsFixed(2)}", Colors.green),
-                      const SizedBox(width: 12),
-                      _mentorStatItem("Charge Rate", "\$${connectionRatePerMin.toStringAsFixed(2)}/min", Colors.blue),
+                      _mentorStatItem("Redeemable Wallet", "\$${mentorEarningsUSD.toStringAsFixed(2)}", Colors.green),
+                      const SizedBox(width: 16),
+                      _mentorStatItem("Assigned Rate", "\$${connectionRatePerMin.toStringAsFixed(2)}/min", mentorAccentColor),
                     ],
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 32),
 
-                  // --- SIMULATED INCOMING ENGINE TRACKER ---
+                  // --- REAL-TIME CALL HANDLING CONTROLLER ---
                   const Text(
-                    "Session Controls",
+                    "Session Engine Management",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],
@@ -185,40 +247,14 @@ class _MentorDashboardState extends State<MentorDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Active Profile Badge: $expertiseTag",
-                          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blueGrey),
+                          "Verified Domain: $expertiseTag",
+                          style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blueGrey, fontSize: 15),
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          "Simulate a completed mentoring connection payload to test your Firestore ledger balances.",
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                          "When visible, students searching the network can request a direct session payload handshake.",
+                          style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton.icon(
-                            onPressed: _isOnline ? _simulateTeachingEarnings : null,
-                            icon: const Icon(Icons.videocam, color: Colors.white),
-                            label: const Text(
-                              "Simulate 10-Min Session (Earn \$1.00)",
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF333697),
-                              disabledBackgroundColor: Colors.grey.shade300,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ),
-                        if (!_isOnline)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              "*You must toggle your availability status to Online to accept connections.",
-                              style: TextStyle(color: Colors.redAccent, fontSize: 12, fontStyle: FontStyle.italic),
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -234,16 +270,17 @@ class _MentorDashboardState extends State<MentorDashboard> {
   Widget _mentorStatItem(String title, String value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
-            Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 8),
+            // FIXED: Swapped undefined .black helper property for exact .w900 token
+            Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
           ],
         ),
       ),
