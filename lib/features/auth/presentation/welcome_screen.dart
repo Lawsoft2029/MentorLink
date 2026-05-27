@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mentorlinks_app_project/features/mentor/presentaion/mentor_dashboard.dart';
+import 'package:mentorlinks_app_project/features/mentor/presentaion/mentor_registration_screen.dart';
 import 'mentee_auth_screen.dart';
-// FIXED: Linked relative package route pointing to the new features track
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -87,11 +86,11 @@ class WelcomeScreen extends StatelessWidget {
                 height: 60,
                 child: OutlinedButton(
                   onPressed: () {
-                    // FIXED: Replaced placeholder alerts with direct push link to our Mentor Dashboard workspace
+                    // UPDATED: Routes directly to the high-quality vetting gate checkpoint 
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const MentorDashboard(),
+                        builder: (context) => const MentorRegistrationScreen(),
                       ),
                     );
                   },
