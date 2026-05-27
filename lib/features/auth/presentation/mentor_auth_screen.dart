@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../mentor/presentation/mentor_dashboard.dart';
+import '../../mentor/presentation/mentor_registration_screen.dart';
 
 class MentorAuthScreen extends StatefulWidget {
   const MentorAuthScreen({super.key});
@@ -42,12 +42,11 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
           password: _passwordController.text.trim(),
         );
 
-        // Explicitly saving them as 'pending' initially, but routing to Dashboard
         await firestore.collection('users').doc(userCredential.user!.uid).set({
           'uid': userCredential.user!.uid,
           'email': _emailController.text.trim(),
           'role': 'mentor',
-          'isApproved': false, // Verification gate remains locked
+          'isApproved': false,
           'mentorEarningsUSD': 0.00,
           'connectionRatePerMin': 0.20,
           'createdAt': FieldValue.serverTimestamp(),
@@ -60,16 +59,16 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
       }
 
       if (mounted) {
-        // ALWAYS push directly onto the Dashboard Workspace
-        Navigator.pushReplacement(
+        // FLOW CONTROL: Move cleanly forward to the portfolio vetting view state
+        Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const MentorDashboard()),
+          MaterialPageRoute(builder: (context) => const MentorRegistrationScreen()),
         );
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.redAccent, content: Text(e.message ?? "Auth failed.")),
+          SnackBar(backgroundColor: Colors.redAccent, content: Text(e.message ?? "Authentication failed.")),
         );
       }
     } finally {
@@ -97,12 +96,12 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
                     const Icon(Icons.gavel_rounded, size: 50, color: mentorAccentColor),
                     const SizedBox(height: 24),
                     Text(
-                      _isSignUp ? "Create Expert Account" : "Welcome Back, Chief",
+                      _isSignUp ? "Create Expert Account" : "Welcome Back",
                       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: mentorAccentColor),
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      "Access your workspace instantly. Manage verification metrics directly from your primary dashboard panel.",
+                      "Log in or Sign up to access your professional credential portfolio dashboard.",
                       style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.4),
                     ),
                     const SizedBox(height: 40),
@@ -142,7 +141,7 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
                         child: Text(
-                          _isSignUp ? "Sign Up to Workspace" : "Authorize & Sign In",
+                          _isSignUp ? "Sign Up & Verify" : "Authorize & Sign In",
                           style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
