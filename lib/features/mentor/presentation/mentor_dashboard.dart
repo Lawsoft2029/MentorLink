@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../auth/presentation/welcome_screen.dart';
+import 'mentor_registration_screen.dart'; // Import to link validation sheet action click
 
 class MentorDashboard extends StatefulWidget {
   const MentorDashboard({super.key});
@@ -15,9 +16,8 @@ class _MentorDashboardState extends State<MentorDashboard> {
   bool _isOnline = false;
   bool _isSyncing = false;
   
-  // Background stream subscription to intercept incoming mentee connection documents
   StreamSubscription<QuerySnapshot>? _incomingCallSubscription;
-  bool _isShowingIncomingSheet = false; // Prevents showing duplicate popups
+  bool _isShowingIncomingSheet = false;
 
   @override
   void initState() {
@@ -27,7 +27,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
 
   @override
   void dispose() {
-    _incomingCallSubscription?.cancel(); // Critical: Kill subscription memory leaks on dispose
+    _incomingCallSubscription?.cancel();
     super.dispose();
   }
 
@@ -42,7 +42,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
           setState(() {
             _isOnline = onlineState;
           });
-          // If the app boots up and the mentor was already marked online, start listening instantly
           if (onlineState) {
             _listenForIncomingCalls(uid);
           }
@@ -51,11 +50,8 @@ class _MentorDashboardState extends State<MentorDashboard> {
     }
   }
 
-  // BACKGROUND INTERCEPTOR SOCKET: Listens for incoming student handshake entries
   void _listenForIncomingCalls(String mentorId) {
-    _incomingCallSubscription?.cancel(); // Reset any existing stream loops
-
-    // FIXED: Corrected structural parameter layout using 'isEqualTo'
+    _incomingCallSubscription?.cancel();
     _incomingCallSubscription = FirebaseFirestore.instance
         .collection('sessions')
         .where('mentorId', isEqualTo: mentorId)
@@ -69,7 +65,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
     });
   }
 
-  // DYNAMIC BOTTOM SHEET DIALOG LAYER (The Handshake Viewport)
   void _showIncomingCallSheet(DocumentSnapshot sessionDoc) {
     if (!mounted) return;
     setState(() => _isShowingIncomingSheet = true);
@@ -81,11 +76,9 @@ class _MentorDashboardState extends State<MentorDashboard> {
 
     showModalBottomSheet(
       context: context,
-      isDismissible: false, // Force active input; mentor must click Accept or Decline explicitly
+      isDismissible: false,
       enableDrag: false,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -98,34 +91,20 @@ class _MentorDashboardState extends State<MentorDashboard> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: mentorAccentColor.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
+                      decoration: BoxDecoration(color: mentorAccentColor.withValues(alpha: 0.1), shape: BoxShape.circle),
                       child: const Icon(Icons.bolt, color: mentorAccentColor, size: 28),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
-                      "Live Request Handshake",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
+                    const Text("Live Request Handshake", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   ],
                 ),
                 const SizedBox(height: 18),
-                Text(
-                  "Student: $menteeName",
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                ),
+                Text("Student: $menteeName", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
-                const Text("Problem Topic Description:", style: TextStyle(fontSize: 13, color: Colors.grey)),
-                Text(
-                  "\"$problemTopic\"",
-                  style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.blueGrey),
-                ),
+                Text("\"$problemTopic\"", style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.blueGrey)),
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    // DECLINE BUTTON (Closes document channel and updates layout status)
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () async {
@@ -133,16 +112,10 @@ class _MentorDashboardState extends State<MentorDashboard> {
                           await sessionDoc.reference.update({'status': 'declined'});
                           setState(() => _isShowingIncomingSheet = false);
                         },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.redAccent, width: 1.5),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text("Decline", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                        child: const Text("Decline"),
                       ),
                     ),
                     const SizedBox(width: 16),
-                    // ACCEPT BUTTON (Updates status field to move both users to live learning state)
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () async {
@@ -152,19 +125,9 @@ class _MentorDashboardState extends State<MentorDashboard> {
                             'connectedAt': FieldValue.serverTimestamp(),
                           });
                           setState(() => _isShowingIncomingSheet = false);
-                          
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(backgroundColor: mentorAccentColor, content: Text("Handshake complete! Transitioning to live workspace stream...")),
-                            );
-                          }
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: mentorAccentColor,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text("Accept & Begin", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(backgroundColor: mentorAccentColor),
+                        child: const Text("Accept & Begin", style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],
@@ -198,44 +161,21 @@ class _MentorDashboardState extends State<MentorDashboard> {
       batch.set(poolDocRef, {
         'mentorId': uid,
         'expertiseTag': profileData['expertiseTag'] ?? 'Expert Developer',
-        'bio': profileData['bio'] ?? '',
         'connectionRatePerMin': profileData['connectionRatePerMin'] ?? 0.20,
-        'linkedinUrl': profileData['linkedinUrl'] ?? '',
-        'githubUrl': profileData['githubUrl'] ?? '',
         'wentLiveAt': FieldValue.serverTimestamp(),
       });
     } else {
       batch.update(userDocRef, {'isOnline': false});
       batch.delete(poolDocRef);
-      _incomingCallSubscription?.cancel(); // Terminate call monitoring background socket when going offline
+      _incomingCallSubscription?.cancel();
     }
 
     try {
       await batch.commit();
-      
-      // Toggle listening logic based on state position changes
-      if (goOnline) {
-        _listenForIncomingCalls(uid);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: goOnline ? const Color(0xFF00796B) : Colors.blueGrey,
-            content: Text(goOnline ? "Presence Sync Active: You are visible to students!" : "Offline status propagated across the pool."),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
+      if (goOnline) _listenForIncomingCalls(uid);
     } catch (e) {
       setState(() => _isOnline = !goOnline);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.redAccent, content: Text("Sync Failed: $e")),
-        );
-      }
     } finally {
-      // FIXED: Swapped 'finaly' typo out for exact standard keyword spelling
       if (mounted) setState(() => _isSyncing = false);
     }
   }
@@ -246,6 +186,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
     const mentorAccentColor = Color(0xFF00796B);
 
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text('Mentor Workspace'),
         backgroundColor: Colors.white,
@@ -255,11 +196,8 @@ class _MentorDashboardState extends State<MentorDashboard> {
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () async {
-              if (_isOnline) {
-                await _syncOnlinePresencePool(false);
-              }
+              if (_isOnline) await _syncOnlinePresencePool(false);
               await FirebaseAuth.instance.signOut();
-              
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const WelcomeScreen()),
@@ -271,9 +209,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
         ],
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: uid != null
-            ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
-            : null,
+        stream: uid != null ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots() : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: mentorAccentColor));
@@ -282,13 +218,15 @@ class _MentorDashboardState extends State<MentorDashboard> {
           double mentorEarningsUSD = 0.00;
           double connectionRatePerMin = 0.20;
           String expertiseTag = "Systems Engineer";
+          bool isApproved = false; // Internal validation tracking metric
 
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data();
             if (data != null) {
               mentorEarningsUSD = (data['mentorEarningsUSD'] ?? 0.0).toDouble();
               connectionRatePerMin = (data['connectionRatePerMin'] ?? 0.20).toDouble();
-              expertiseTag = data['expertiseTag'] ?? 'Expert Developer';
+              expertiseTag = data['expertiseTag'] ?? 'Pending Verification';
+              isApproved = data['isApproved'] ?? false;
             }
           }
 
@@ -298,53 +236,88 @@ class _MentorDashboardState extends State<MentorDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // --- DYNAMIC SECURITY VETTING NOTIFICATION BANNER ---
+                  if (!isApproved) ...[
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const MentorRegistrationScreen()),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.amberAccent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.amber.shade700, width: 1.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.gavel_rounded, color: Colors.amber.shade900, size: 28),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Verification Mandatory",
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900, fontSize: 15),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    "Tap here to link your GitHub, LinkedIn, and certificates to unlock discovery features.",
+                                    style: TextStyle(fontSize: 12, color: Colors.black87, height: 1.3),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios, color: Colors.amber.shade900, size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // --- ONLINE/OFFLINE SWITCH CONTROL CARD ---
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: _isOnline 
-                          ? mentorAccentColor.withValues(alpha: 0.08)
-                          : Colors.grey.withValues(alpha: 0.05),
+                      color: _isOnline ? mentorAccentColor.withValues(alpha: 0.08) : Colors.grey.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _isOnline ? mentorAccentColor : Colors.grey.shade300,
-                        width: 1.5,
-                      ),
+                      border: Border.all(color: _isOnline ? mentorAccentColor : Colors.grey.shade300, width: 1.5),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
-                            _isSyncing
-                                ? const SizedBox(
-                                    height: 14,
-                                    width: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: mentorAccentColor),
-                                  )
-                                : Icon(
-                                    Icons.circle,
-                                    color: _isOnline ? mentorAccentColor : Colors.grey,
-                                    size: 14,
-                                  ),
+                            Icon(Icons.circle, color: _isOnline ? mentorAccentColor : Colors.grey, size: 14),
                             const SizedBox(width: 12),
                             Text(
                               _isOnline ? "Live Pool Discovery: Active" : "Status: Hidden (Offline)",
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: _isOnline ? mentorAccentColor : Colors.grey.shade700),
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _isOnline ? mentorAccentColor : Colors.grey.shade700),
                             ),
                           ],
                         ),
                         Switch(
+                          // FORCE SECURITY CLOSURE: Switch stays disabled until account approval occurs
                           value: _isOnline,
                           activeThumbColor: mentorAccentColor,
-                          activeTrackColor: mentorAccentColor.withValues(alpha: 0.3),
-                          onChanged: _isSyncing ? null : _syncOnlinePresencePool,
+                          onChanged: (isApproved && !_isSyncing) ? _syncOnlinePresencePool : null,
                         ),
                       ],
                     ),
                   ),
+                  if (!isApproved)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6.0, left: 4),
+                      child: Text(
+                        "*Account status must be verified before moving online.",
+                        style: TextStyle(color: Colors.red.shade700, fontSize: 11, fontStyle: FontStyle.italic),
+                      ),
+                    ),
                   const SizedBox(height: 24),
 
                   Row(
@@ -356,38 +329,22 @@ class _MentorDashboardState extends State<MentorDashboard> {
                   ),
                   const SizedBox(height: 32),
 
-                  const Text(
-                    "Session Engine Management",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  const Text("Session Engine Management", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-                  
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          "Verified Domain: $expertiseTag",
-                          style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blueGrey, fontSize: 15),
-                        ),
+                        Text("Verified Domain: $expertiseTag", style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blueGrey, fontSize: 15)),
                         const SizedBox(height: 8),
-                        const Text(
-                          "When visible, students searching the network can request a direct session payload handshake.",
-                          style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
-                        ),
+                        const Text("When visible, students searching the network can request a direct session payload handshake.", style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4)),
                       ],
                     ),
                   ),
@@ -404,10 +361,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(16),
-        ),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(16)),
         child: Column(
           children: [
             Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),

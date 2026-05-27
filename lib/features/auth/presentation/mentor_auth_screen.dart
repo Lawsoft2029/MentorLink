@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../mentor/presentation/mentor_registration_screen.dart';
 import '../../mentor/presentation/mentor_dashboard.dart';
 
 class MentorAuthScreen extends StatefulWidget {
@@ -16,7 +15,7 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  bool _isSignUp = false; // Toggles between Login and Registration mode
+  bool _isSignUp = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -27,7 +26,6 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
     super.dispose();
   }
 
-  // CORE AUTHENTICATION ENGINE & INTEL ROUTING PATHWAY
   Future<void> _handleAuthentication() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -39,60 +37,39 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
       UserCredential userCredential;
       
       if (_isSignUp) {
-        // 1. Create brand new authentication record credentials
         userCredential = await auth.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        // 2. Initialize minimal default profile record document mapping
+        // Explicitly saving them as 'pending' initially, but routing to Dashboard
         await firestore.collection('users').doc(userCredential.user!.uid).set({
           'uid': userCredential.user!.uid,
           'email': _emailController.text.trim(),
-          'role': 'mentor_pending', // Intermediate structural tag state
+          'role': 'mentor',
+          'isApproved': false, // Verification gate remains locked
+          'mentorEarningsUSD': 0.00,
+          'connectionRatePerMin': 0.20,
           'createdAt': FieldValue.serverTimestamp(),
         });
-
-        if (mounted) {
-          // Send new signups directly to fill out verification forms
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MentorRegistrationScreen()),
-          );
-        }
       } else {
-        // 1. Attempt login credential authorization validation
-        userCredential = await auth.signInWithEmailAndPassword(
+        await auth.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+      }
 
-        // 2. Inspect database flag metrics to trace historical vetting data maps
-        final userDoc = await firestore.collection('users').doc(userCredential.user!.uid).get();
-
-        if (mounted) {
-          if (userDoc.exists && userDoc.data()?['role'] == 'mentor') {
-            // Vetted expert profile exists -> route directly to dashboard
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MentorDashboard()),
-            );
-          } else {
-            // Missing registration details -> redirect to vetting inputs
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MentorRegistrationScreen()),
-            );
-          }
-        }
+      if (mounted) {
+        // ALWAYS push directly onto the Dashboard Workspace
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MentorDashboard()),
+        );
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.redAccent,
-            content: Text(e.message ?? "Authentication process failed."),
-          ),
+          SnackBar(backgroundColor: Colors.redAccent, content: Text(e.message ?? "Auth failed.")),
         );
       }
     } finally {
@@ -102,15 +79,11 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const mentorAccentColor = Color(0xFF00796B); // Professional Mentor Teal
+    const mentorAccentColor = Color(0xFF00796B);
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black,
-      ),
+      appBar: AppBar(backgroundColor: Colors.white, elevation: 0, foregroundColor: Colors.black),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: mentorAccentColor))
           : SingleChildScrollView(
@@ -121,22 +94,18 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-                    Icon(Icons.gavel_rounded, size: 50, color: mentorAccentColor),
+                    const Icon(Icons.gavel_rounded, size: 50, color: mentorAccentColor),
                     const SizedBox(height: 24),
                     Text(
                       _isSignUp ? "Create Expert Account" : "Welcome Back, Chief",
                       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: mentorAccentColor),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      _isSignUp 
-                          ? "Register to begin verifying your professional experience portfolio credentials." 
-                          : "Log in to activate your presence discovery engine and accept requests.",
-                      style: const TextStyle(fontSize: 14, color: Colors.grey, height: 1.4),
+                    const Text(
+                      "Access your workspace instantly. Manage verification metrics directly from your primary dashboard panel.",
+                      style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.4),
                     ),
                     const SizedBox(height: 40),
-
-                    // --- EMAIL INPUT ---
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -145,11 +114,9 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                         prefixIcon: const Icon(Icons.email_outlined, color: mentorAccentColor),
                       ),
-                      validator: (value) => (value == null || !value.contains('@')) ? "Enter a valid email address" : null,
+                      validator: (value) => (value == null || !value.contains('@')) ? "Enter a valid email" : null,
                     ),
                     const SizedBox(height: 20),
-
-                    // --- PASSWORD INPUT ---
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -162,11 +129,9 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                         ),
                       ),
-                      validator: (value) => (value == null || value.length < 6) ? "Password must contain at least 6 characters" : null,
+                      validator: (value) => (value == null || value.length < 6) ? "Minimum 6 characters required" : null,
                     ),
                     const SizedBox(height: 32),
-
-                    // --- SUBMIT ACTION ENTRY PORTAL ---
                     SizedBox(
                       width: double.infinity,
                       height: 60,
@@ -177,20 +142,18 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
                         child: Text(
-                          _isSignUp ? "Sign Up & Start Vetting" : "Authorize & Sign In",
+                          _isSignUp ? "Sign Up to Workspace" : "Authorize & Sign In",
                           style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // --- SWITCH REGISTRATION MODE LINK BUTTON ---
                     Center(
                       child: TextButton(
                         onPressed: () => setState(() => _isSignUp = !_isSignUp),
                         child: Text(
-                          _isSignUp ? "Already a verified member? Log In" : "New to the platform? Apply to Mentor",
-                          style: const TextStyle(color: mentorAccentColor, fontWeight: FontWeight.w600, fontSize: 14),
+                          _isSignUp ? "Already a registered member? Log In" : "Apply to join network as an Expert",
+                          style: const TextStyle(color: mentorAccentColor, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),

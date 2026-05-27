@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mentorlinks_app_project/features/mentor/presentation/mentor_registration_screen.dart';
+import 'mentor_auth_screen.dart'; // UPDATED: Import the authentication page
 import 'mentee_auth_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -86,10 +86,11 @@ class WelcomeScreen extends StatelessWidget {
                 height: 60,
                 child: OutlinedButton(
                   onPressed: () {
+                    // UPDATED: Corrected navigation routing to point to the mentor authentication checkpoint screen
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const MentorRegistrationScreen(),
+                        builder: (context) => const MentorAuthScreen(),
                       ),
                     );
                   },
