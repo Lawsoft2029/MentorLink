@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:mentorlinks_app_project/features/mentor/presentaion/mentor_dashboard.dart';
 import 'mentee_auth_screen.dart';
-// IMPORTANT: Once you create your mentor_auth_screen.dart, import it here!
-// import 'mentor_auth_screen.dart'; 
+// FIXED: Linked relative package route pointing to the new features track
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -87,19 +87,13 @@ class WelcomeScreen extends StatelessWidget {
                 height: 60,
                 child: OutlinedButton(
                   onPressed: () {
-                    // Placeholder navigation for the upcoming Mentor Verification and Authentication module
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        backgroundColor: Color(0xFF333697),
-                        content: Text("Routing to Mentor Vetting & Payout Portal..."),
+                    // FIXED: Replaced placeholder alerts with direct push link to our Mentor Dashboard workspace
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MentorDashboard(),
                       ),
                     );
-                    
-                    // Future wiring implementation:
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(builder: (context) => const MentorAuthScreen()),
-                    // );
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF333697), width: 2),
