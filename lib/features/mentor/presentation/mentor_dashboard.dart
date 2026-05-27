@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../auth/presentation/welcome_screen.dart';
 import 'mentor_registration_screen.dart'; // Import to link validation sheet action click
+import 'live_session_screen.dart'; // UPDATED: Integrated reference to the classroom room viewport
 
 class MentorDashboard extends StatefulWidget {
   const MentorDashboard({super.key});
@@ -119,12 +120,27 @@ class _MentorDashboardState extends State<MentorDashboard> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () async {
+                          final String activeSessionId = sessionDoc.id; // Capture reference ID parameter
+
                           Navigator.pop(context);
                           await sessionDoc.reference.update({
                             'status': 'accepted',
                             'connectedAt': FieldValue.serverTimestamp(),
                           });
                           setState(() => _isShowingIncomingSheet = false);
+
+                          // UPDATED ROUTING: Push the clean mentor permission workspace straight onto navigation stacks
+                          if (mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => LiveSessionScreen(
+                                  sessionId: activeSessionId,
+                                  role: 'mentor',
+                                ),
+                              ),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: mentorAccentColor),
                         child: const Text("Accept & Begin", style: TextStyle(color: Colors.white)),
