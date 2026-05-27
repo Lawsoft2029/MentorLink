@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,8 +12,12 @@ class MentorDashboard extends StatefulWidget {
 }
 
 class _MentorDashboardState extends State<MentorDashboard> {
-  bool _isOnline = false; // Internal tracking state for the toggle switch
-  bool _isSyncing = false; // Safe lock to prevent rapid spam clicking
+  bool _isOnline = false;
+  bool _isSyncing = false;
+  
+  // Background stream subscription to intercept incoming mentee connection documents
+  StreamSubscription<QuerySnapshot>? _incomingCallSubscription;
+  bool _isShowingIncomingSheet = false; // Prevents showing duplicate popups
 
   @override
   void initState() {
@@ -20,7 +25,12 @@ class _MentorDashboardState extends State<MentorDashboard> {
     _fetchCurrentOnlinePresence();
   }
 
-  // Double check actual database state on boot so UI switch state never lies
+  @override
+  void dispose() {
+    _incomingCallSubscription?.cancel(); // Critical: Kill subscription memory leaks on dispose
+    super.dispose();
+  }
+
   Future<void> _fetchCurrentOnlinePresence() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
@@ -28,15 +38,145 @@ class _MentorDashboardState extends State<MentorDashboard> {
       if (doc.exists && mounted) {
         final data = doc.data();
         if (data != null) {
+          bool onlineState = data['isOnline'] ?? false;
           setState(() {
-            _isOnline = data['isOnline'] ?? false;
+            _isOnline = onlineState;
           });
+          // If the app boots up and the mentor was already marked online, start listening instantly
+          if (onlineState) {
+            _listenForIncomingCalls(uid);
+          }
         }
       }
     }
   }
 
-  // THE GLOBAL SYNC POOL ENGINE: Toggles presence flags across target endpoints
+  // BACKGROUND INTERCEPTOR SOCKET: Listens for incoming student handshake entries
+  void _listenForIncomingCalls(String mentorId) {
+    _incomingCallSubscription?.cancel(); // Reset any existing stream loops
+
+    // FIXED: Corrected structural parameter layout using 'isEqualTo'
+    _incomingCallSubscription = FirebaseFirestore.instance
+        .collection('sessions')
+        .where('mentorId', isEqualTo: mentorId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.docs.isNotEmpty && !_isShowingIncomingSheet && _isOnline) {
+        final sessionDoc = snapshot.docs.first;
+        _showIncomingCallSheet(sessionDoc);
+      }
+    });
+  }
+
+  // DYNAMIC BOTTOM SHEET DIALOG LAYER (The Handshake Viewport)
+  void _showIncomingCallSheet(DocumentSnapshot sessionDoc) {
+    if (!mounted) return;
+    setState(() => _isShowingIncomingSheet = true);
+
+    final sessionData = sessionDoc.data() as Map<String, dynamic>;
+    final menteeName = sessionData['menteeName'] ?? 'Anonymous Student';
+    final problemTopic = sessionData['topic'] ?? 'General Engineering Question';
+    const mentorAccentColor = Color(0xFF00796B);
+
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false, // Force active input; mentor must click Accept or Decline explicitly
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: mentorAccentColor.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.bolt, color: mentorAccentColor, size: 28),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      "Live Request Handshake",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  "Student: $menteeName",
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                const SizedBox(height: 6),
+                const Text("Problem Topic Description:", style: TextStyle(fontSize: 13, color: Colors.grey)),
+                Text(
+                  "\"$problemTopic\"",
+                  style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.blueGrey),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    // DECLINE BUTTON (Closes document channel and updates layout status)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await sessionDoc.reference.update({'status': 'declined'});
+                          setState(() => _isShowingIncomingSheet = false);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text("Decline", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // ACCEPT BUTTON (Updates status field to move both users to live learning state)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await sessionDoc.reference.update({
+                            'status': 'accepted',
+                            'connectedAt': FieldValue.serverTimestamp(),
+                          });
+                          setState(() => _isShowingIncomingSheet = false);
+                          
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(backgroundColor: mentorAccentColor, content: Text("Handshake complete! Transitioning to live workspace stream...")),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: mentorAccentColor,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text("Accept & Begin", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _syncOnlinePresencePool(bool goOnline) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -51,14 +191,10 @@ class _MentorDashboardState extends State<MentorDashboard> {
     final poolDocRef = FirebaseFirestore.instance.collection('available_mentors').doc(uid);
 
     if (goOnline) {
-      // 1. Fetch mentor's current profile details to populate the discovery card
       final profileSnapshot = await userDocRef.get();
       final profileData = profileSnapshot.data() ?? {};
 
-      // 2. Queue Update: Set local user document flags
       batch.update(userDocRef, {'isOnline': true});
-
-      // 3. Queue Set: Inject profile into global discovery pool for Mentees
       batch.set(poolDocRef, {
         'mentorId': uid,
         'expertiseTag': profileData['expertiseTag'] ?? 'Expert Developer',
@@ -69,16 +205,18 @@ class _MentorDashboardState extends State<MentorDashboard> {
         'wentLiveAt': FieldValue.serverTimestamp(),
       });
     } else {
-      // 1. Queue Update: Set local user document offline
       batch.update(userDocRef, {'isOnline': false});
-
-      // 2. Queue Delete: Obliterate record from active matching pool completely
       batch.delete(poolDocRef);
+      _incomingCallSubscription?.cancel(); // Terminate call monitoring background socket when going offline
     }
 
     try {
-      // Commit the database edits atomically in a single trip
       await batch.commit();
+      
+      // Toggle listening logic based on state position changes
+      if (goOnline) {
+        _listenForIncomingCalls(uid);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -90,7 +228,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
         );
       }
     } catch (e) {
-      // Rollback UI switch position if connection drops out mid-write
       setState(() => _isOnline = !goOnline);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,6 +235,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
         );
       }
     } finally {
+      // FIXED: Swapped 'finaly' typo out for exact standard keyword spelling
       if (mounted) setState(() => _isSyncing = false);
     }
   }
@@ -105,7 +243,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    const mentorAccentColor = Color(0xFF00796B); // Unified clean teal theme
+    const mentorAccentColor = Color(0xFF00796B);
 
     return Scaffold(
       appBar: AppBar(
@@ -117,7 +255,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () async {
-              // Graceful Exit Guard: Erase mentor presence before token invalidation
               if (_isOnline) {
                 await _syncOnlinePresencePool(false);
               }
@@ -147,7 +284,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
           String expertiseTag = "Systems Engineer";
 
           if (snapshot.hasData && snapshot.data!.exists) {
-            // FIXED: Removed the redundant unnecessary cast syntax layer here
             final data = snapshot.data!.data();
             if (data != null) {
               mentorEarningsUSD = (data['mentorEarningsUSD'] ?? 0.0).toDouble();
@@ -162,7 +298,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- ONLINE/OFFLINE PRESENCE SYNC CARD ---
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
@@ -212,7 +347,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
                   ),
                   const SizedBox(height: 24),
 
-                  // --- FINANCIAL ANALYTICS BANNER ---
                   Row(
                     children: [
                       _mentorStatItem("Redeemable Wallet", "\$${mentorEarningsUSD.toStringAsFixed(2)}", Colors.green),
@@ -222,7 +356,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
                   ),
                   const SizedBox(height: 32),
 
-                  // --- REAL-TIME CALL HANDLING CONTROLLER ---
                   const Text(
                     "Session Engine Management",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -279,7 +412,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
           children: [
             Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 8),
-            // FIXED: Swapped undefined .black helper property for exact .w900 token
             Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
           ],
         ),
