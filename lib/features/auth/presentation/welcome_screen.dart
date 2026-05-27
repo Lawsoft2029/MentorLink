@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mentorlinks_app_project/features/mentor/presentaion/mentor_registration_screen.dart';
+import 'package:mentorlinks_app_project/features/mentor/presentation/mentor_registration_screen.dart';
 import 'mentee_auth_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
