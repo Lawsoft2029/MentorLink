@@ -18,20 +18,29 @@ class LiveSessionScreen extends StatefulWidget {
 
 class _LiveSessionScreenState extends State<LiveSessionScreen> {
   final _codeWorkspaceController = TextEditingController(); 
+  
   Timer? _sessionClockTimer;
+  Timer? _debounceTimer; // NEW: Controls the keystroke broadcast throttle buffer
+  StreamSubscription<DocumentSnapshot>? _sessionDocumentSubscription; // NEW: Listens for text edits from the other user
+  
   int _secondsElapsed = 0;
-  bool _isEnding = false; // Prevents double taps during database writes
+  bool _isEnding = false; 
+  bool _isLocalUpdate = false; // NEW: Flags local changes to prevent infinite cursor feedback loops
 
   @override
   void initState() {
     super.initState();
     _startSessionStopwatch();
-    _listenForRemoteSessionTermination();
+    _listenForLiveSessionUpdates();
+    _codeWorkspaceController.addListener(_onCodeTextChanged); // NEW: Watch for keypad input changes
   }
 
   @override
   void dispose() {
     _sessionClockTimer?.cancel();
+    _debounceTimer?.cancel();
+    _sessionDocumentSubscription?.cancel();
+    _codeWorkspaceController.removeListener(_onCodeTextChanged);
     _codeWorkspaceController.dispose(); 
     super.dispose();
   }
@@ -46,17 +55,59 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
   }
 
-  // PASSIVE LISTENER: Automatically detects if the opposite user ends the session channel
-  void _listenForRemoteSessionTermination() {
-    FirebaseFirestore.instance
+  // REAL-TIME SYNC LISTENER: Detects when the code text changes in the database
+  void _listenForLiveSessionUpdates() {
+    _sessionDocumentSubscription = FirebaseFirestore.instance
         .collection('sessions')
         .doc(widget.sessionId)
         .snapshots()
         .listen((snapshot) {
-      if (snapshot.exists && snapshot.data()?['status'] == 'completed' && mounted) {
+      if (!snapshot.exists || !mounted) return;
+      
+      final data = snapshot.data()!;
+      
+      // Handle automatic session teardown if a user triggers completion
+      if (data['status'] == 'completed') {
         _sessionClockTimer?.cancel();
-        _showTerminationSummaryDialog(snapshot.data()!);
+        _showTerminationSummaryDialog(data);
+        return;
       }
+
+      // Sync the incoming code text only if it didn't originate from this device
+      final String remoteCode = data['sharedCodeCanvasText'] ?? '';
+      if (remoteCode != _codeWorkspaceController.text) {
+        _isLocalUpdate = true; // Raise lock flag safely
+        
+        // Save current cursor location configuration before replacing content
+        final previousSelection = _codeWorkspaceController.selection;
+        _codeWorkspaceController.text = remoteCode;
+        
+        // Restore cursor selection parameters to avoid snapping text pointer to the front
+        try {
+          _codeWorkspaceController.selection = previousSelection;
+        } catch (_) {
+          _codeWorkspaceController.selection = TextSelection.collapsed(offset: remoteCode.length);
+        }
+        
+        _isLocalUpdate = false; // Drop lock flag
+      }
+    });
+  }
+
+  // KEYSTROKE THROTTLE ENGINE: Debounces writes to avoid slamming Firestore on every single letter typed
+  void _onCodeTextChanged() {
+    if (_isLocalUpdate) return; // Ignore updates that come from the database listener
+
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      FirebaseFirestore.instance
+          .collection('sessions')
+          .doc(widget.sessionId)
+          .update({
+        'sharedCodeCanvasText': _codeWorkspaceController.text,
+        'lastEditedBy': widget.role,
+      });
     });
   }
 
@@ -66,11 +117,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     return "$minutes:$seconds";
   }
 
-  // ACTIVE DISCONNECT HANDSHAKE: Stops tracking, calculates rates, and handles ledger updates
   Future<void> _endLiveSessionChannel() async {
     if (_isEnding) return;
     setState(() => _isEnding = true);
     _sessionClockTimer?.cancel();
+    _debounceTimer?.cancel();
 
     final sessionRef = FirebaseFirestore.instance.collection('sessions').doc(widget.sessionId);
     
@@ -79,11 +130,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       final data = snapshot.data() ?? {};
       final double ratePerMin = (data['connectionRatePerMin'] ?? 0.20).toDouble();
 
-      // Compute total session block minutes (rounded up)
       final int totalMinutes = (_secondsElapsed / 60).ceil();
       final double totalCostUSD = totalMinutes * ratePerMin;
 
-      // Update global session channel status metrics
       await sessionRef.update({
         'status': 'completed',
         'durationSeconds': _secondsElapsed,
@@ -91,7 +140,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         'endedAt': FieldValue.serverTimestamp(),
       });
 
-      // Special conditional routing: Credit the mentor's ledger atomically if they initiate termination
       if (widget.role == 'mentor') {
         final mentorUid = data['mentorId'];
         if (mentorUid != null) {
@@ -143,7 +191,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context); 
-              Navigator.pop(context); // Return safely back to the user's primary dashboard environment
+              Navigator.pop(context); 
             },
             child: const Text("Return to Dashboard", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00796B))),
           ),
@@ -154,7 +202,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // FIXED: Used sessionColor to drive terminal theme changes dynamically
     final Color sessionColor = widget.role == 'mentor' 
         ? const Color(0xFF00796B) 
         : const Color(0xFF333697);
@@ -172,7 +219,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             padding: const EdgeInsets.all(12.0),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              // FIXED: Replaced deprecated withOpacity with .withValues
               decoration: BoxDecoration(
                 color: Colors.redAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
@@ -213,7 +259,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.terminal, color: sessionColor, size: 16), // FIXED: Using sessionColor here variable cleanly
+                          Icon(Icons.terminal, color: sessionColor, size: 16), 
                           const SizedBox(width: 8),
                           const Text(
                             "Shared Engineering Code Canvas (.dart / .plc)",
@@ -243,8 +289,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               ),
             ),
           ),
-          
-          // --- ADDED: BOTTOM ACTION DRAWER PANELS ---
           Container(
             padding: const EdgeInsets.all(24),
             decoration: const BoxDecoration(
