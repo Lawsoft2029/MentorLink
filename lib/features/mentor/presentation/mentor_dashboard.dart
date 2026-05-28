@@ -370,6 +370,23 @@ class _MentorDashboardState extends State<MentorDashboard> {
           );
         },
       ),
+      // --- ADDED: QUICK HARDWIRED DEVELOPER TEST HARNESS SLIDE GATE ---
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const LiveSessionScreen(
+                sessionId: "MANUAL_SANDBOX_DEV_OVERRIDE",
+                role: 'mentor',
+              ),
+            ),
+          );
+        },
+        backgroundColor: Colors.orange,
+        icon: const Icon(Icons.developer_mode, color: Colors.white),
+        label: const Text("Bypass to Live Screen", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
     );
   }
 
