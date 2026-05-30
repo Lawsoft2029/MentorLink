@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // REQUIRED: For reading role profile records
 import 'package:mentorlinks_app_project/features/auth/presentation/welcome_screen.dart';
 import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dashboard.dart';
+import 'package:mentorlinks_app_project/features/mentor/presentation/mentor_dashboard.dart'; // REQUIRED: For routing mentors correctly
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -26,9 +28,38 @@ class AuthGate extends StatelessWidget {
         }
 
         // 2. Logic: User is Authenticated
-        // If Firebase finds a valid user session, show the Dashboard
+        // If Firebase finds a valid user session, evaluate their profile role type
         if (snapshot.hasData) {
-          return const MenteeDashboard();
+          final String uid = snapshot.data!.uid;
+
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+            builder: (context, userDocSnapshot) {
+              if (userDocSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF333697),
+                    ),
+                  ),
+                );
+              }
+
+              // Safety check: If document doesn't exist yet, send back to welcome
+              if (!userDocSnapshot.hasData || !userDocSnapshot.data!.exists) {
+                return const WelcomeScreen();
+              }
+
+              final userData = userDocSnapshot.data!.data() as Map<String, dynamic>?;
+              final String accountType = userData?['accountType'] ?? 'mentee';
+
+              if (accountType == 'mentor') {
+                return const MentorDashboard();
+              } else {
+                return const MenteeDashboard();
+              }
+            },
+          );
         }
 
         // 3. Logic: No User Found
