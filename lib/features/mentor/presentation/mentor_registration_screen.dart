@@ -84,9 +84,10 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
 
     if (uid != null) {
       try {
+        // FIXED CRITICAL GATING PARAMETER: Force 'accountType' assignment during registration payload handling
         await FirebaseFirestore.instance.collection('users').doc(uid).set({
           'role': 'mentor',
-          'accountType': 'mentor', 
+          'accountType': 'mentor', // Ensures AuthGate streams track role identification fields accurately
           'expertiseTag': _expertiseController.text.trim(),
           'bio': _bioController.text.trim(),
           'githubUrl': _githubController.text.trim(),

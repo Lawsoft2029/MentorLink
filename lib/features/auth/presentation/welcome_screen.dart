@@ -20,8 +20,8 @@ class WelcomeScreen extends StatelessWidget {
                 height: 120,
                 width: 120,
                 decoration: BoxDecoration(
-                  // ignore: deprecated_member_use
-                  color: const Color(0xFF333697).withOpacity(0.1), // Updated for stable API compatibility
+                  // FIXED: Swapped out deprecated withOpacity method call for modern withValues standard
+                  color: const Color(0xFF333697).withValues(alpha: 0.1), // Updated for stable API compatibility
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
