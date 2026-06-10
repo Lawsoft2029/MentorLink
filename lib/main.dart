@@ -13,6 +13,8 @@ import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dash
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  GoogleFonts.config.allowRuntimeFetching = false;
+  
   if (kIsWeb) {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
