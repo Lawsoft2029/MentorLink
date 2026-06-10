@@ -54,6 +54,7 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
         'uid': userCredential.user!.uid,
         'email': "sandbox-mentor@mentorlinks.test",
         'role': 'mentor',
+        'accountType': 'mentor', // FIXED: Ensures the AuthGate routing streams see the role assignment instantly
         'expertiseTag': 'Automated Debug Profile (PLC / Flutter)',
         'bio': 'Sandbox bypass active for real-time connection telemetry simulation tests.',
         'githubUrl': 'https://github.com',
@@ -100,16 +101,23 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
           'uid': userCredential.user!.uid,
           'email': _emailController.text.trim(),
           'role': 'mentor',
+          'accountType': 'mentor', // FIXED: Hardwires proper gate routing parameters on account instantiation
           'isApproved': false,
           'mentorEarningsUSD': 0.00,
           'connectionRatePerMin': 0.20,
           'createdAt': FieldValue.serverTimestamp(),
-        });
+        }, SetOptions(merge: true));
       } else {
         userCredential = await auth.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+
+        // FIXED: For existing users, update or patch the account type field to prevent student routing locks
+        await firestore.collection('users').doc(userCredential.user!.uid).set({
+          'accountType': 'mentor',
+          'role': 'mentor',
+        }, SetOptions(merge: true));
       }
 
       if (mounted) {
@@ -152,8 +160,8 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
                   "Bypass Onboarding",
                   style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
                 ),
-                // ignore: deprecated_member_use
-                style: TextButton.styleFrom(backgroundColor: Colors.amber.withOpacity(0.1)),
+                // FIXED: Migrated from deprecated withOpacity standard to active withValues ecosystem standard
+                style: TextButton.styleFrom(backgroundColor: Colors.amber.withValues(alpha: 0.1)),
               ),
             ),
         ],
