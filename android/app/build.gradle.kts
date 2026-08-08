@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.example.mentorlinks_app_project"
-    compileSdk = 34 // Set to 34 for Android 14 compatibility
+    compileSdk = 36 // Set to 36 to satisfy AndroidX browser and core library requirements
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -26,7 +26,7 @@ android {
         
         // Agora requires a minimum SDK of at least 21
         minSdk = flutter.minSdkVersion 
-        targetSdk = 34 // Matches Android 14
+        targetSdk = 36 // Updated to match compileSdk
         
         versionCode = flutter.versionCode
         versionName = flutter.versionName

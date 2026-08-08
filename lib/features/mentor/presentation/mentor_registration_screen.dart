@@ -19,10 +19,16 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
 
   double _chargeRatePerMin = 0.20;
   bool _isGithubVerified = false;
-  bool _isLinkedinVerified = false; // FIXED: Maintained consistent lowercase 'i' naming profile
+  bool _isLinkedinVerified = false;
   bool _hasUploadedCert = false;
   bool _agreedToTerms = false;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingMentorData(); // FETCH SAVED DATA ON SCREEN LOAD
+  }
 
   @override
   void dispose() {
@@ -31,6 +37,43 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
     _githubController.dispose();
     _linkedinController.dispose();
     super.dispose();
+  }
+
+  // --- DATA PERSISTENCE: Pulls previously saved user data from Firestore ---
+  Future<void> _loadExistingMentorData() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        
+        // Pre-populate controllers and states if values exist in the database
+        if (data['expertiseTag'] != null) {
+          _expertiseController.text = data['expertiseTag'];
+        }
+        if (data['bio'] != null) {
+          _bioController.text = data['bio'];
+        }
+        if (data['githubUrl'] != null && (data['githubUrl'] as String).isNotEmpty) {
+          _githubController.text = data['githubUrl'];
+          _isGithubVerified = true;
+        }
+        if (data['linkedinUrl'] != null && (data['linkedinUrl'] as String).isNotEmpty) {
+          _linkedinController.text = data['linkedinUrl'];
+          _isLinkedinVerified = true;
+        }
+        if (data['connectionRatePerMin'] != null) {
+          _chargeRatePerMin = (data['connectionRatePerMin'] as num).toDouble();
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching existing mentor data: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _verifyGitHub() {
@@ -49,7 +92,7 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
     setState(() => _isLoading = true);
     Future.delayed(const Duration(seconds: 1), () {
       setState(() {
-        _isLinkedinVerified = true; // FIXED: Corrected undefined capital 'I' naming parameter reference
+        _isLinkedinVerified = true;
         _isLoading = false;
       });
     });
@@ -67,7 +110,7 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
 
   Future<void> _submitRegistrationPortfolio() async {
     if (_githubController.text.trim().isNotEmpty) _isGithubVerified = true;
-    if (_linkedinController.text.trim().isNotEmpty) _isLinkedinVerified = true; // FIXED: Casing matched alignment profiles
+    if (_linkedinController.text.trim().isNotEmpty) _isLinkedinVerified = true;
 
     if (!_formKey.currentState!.validate() || !_isGithubVerified || !_isLinkedinVerified || !_hasUploadedCert || !_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,10 +127,9 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
 
     if (uid != null) {
       try {
-        // FIXED CRITICAL GATING PARAMETER: Force 'accountType' assignment during registration payload handling
         await FirebaseFirestore.instance.collection('users').doc(uid).set({
           'role': 'mentor',
-          'accountType': 'mentor', // Ensures AuthGate streams track role identification fields accurately
+          'accountType': 'mentor',
           'expertiseTag': _expertiseController.text.trim(),
           'bio': _bioController.text.trim(),
           'githubUrl': _githubController.text.trim(),
