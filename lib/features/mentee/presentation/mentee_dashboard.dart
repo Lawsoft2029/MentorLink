@@ -21,7 +21,7 @@ class _MenteeDashboardState extends State<MenteeDashboard> {
     const HomeScreenContent(),
     const WalletScreen(),
     const VaultScreen(),
-    const LiveSessionScreen(),
+    LiveSessionScreen(sessionId: 'default_session', role: 'mentee'),
   ];
 
   @override

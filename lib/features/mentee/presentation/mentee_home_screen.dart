@@ -56,7 +56,7 @@ class _MenteeHomeScreenState extends State<MenteeHomeScreen> {
           // Navigate to the Live Session / Timer screen
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const LiveSessionScreen()),
+            MaterialPageRoute(builder: (context) => LiveSessionScreen(sessionId: '', role: 'mentee')),
           );
         },
         backgroundColor: Colors.redAccent,
@@ -208,7 +208,7 @@ class HomeContent extends StatelessWidget {
                   // Navigate to Live Session when Hire is clicked
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const LiveSessionScreen()),
+                    MaterialPageRoute(builder: (context) => LiveSessionScreen(sessionId: '', role: 'mentee')),
                   );
                 },
                 style: ElevatedButton.styleFrom(

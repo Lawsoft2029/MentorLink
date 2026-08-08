@@ -12,13 +12,19 @@ import 'package:highlight/languages/dart.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_auth/firebase_auth.dart'; // Added for real-time live wallet connection
-import 'package:cloud_firestore/cloud_firestore.dart'; // Added for streaming token updates
+import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 
 class LiveSessionScreen extends StatefulWidget {
-  // UPDATED: Standardized to match the exact mentor connection rate per minute ($0.10 / 60 seconds)
+  final String sessionId; // UPDATED: Added to match mentor configuration parameters
+  final String role;      // UPDATED: Added to track user role ('mentee' / 'mentor')
   final double ratePerSecond = 0.10 / 60;
-  const LiveSessionScreen({super.key});
+  
+  const LiveSessionScreen({
+    super.key,
+    required this.sessionId,
+    required this.role,
+  });
 
   @override
   State<LiveSessionScreen> createState() => _LiveSessionScreenState();
@@ -309,7 +315,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       await _engine.startPreview();
       await _engine.joinChannel(
         token: "YOUR_TOKEN",
-        channelId: "MentorSession_1",
+        channelId: widget.sessionId, // UPDATED: Use sessionId as the live channel name
         uid: 0,
         options: const ChannelMediaOptions(
           clientRoleType: ClientRoleType.clientRoleBroadcaster,
@@ -340,7 +346,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     }
   }
 
-  // UPDATED: Automated state machine updates Firestore and verifies balance checks every second
   void _startSession() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -349,14 +354,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
         
         try {
-          // 1. Fetch current cloud state configuration
           final docSnapshot = await userDoc.get();
           if (docSnapshot.exists) {
             final data = docSnapshot.data() as Map<String, dynamic>;
             double currentBalance = (data['walletBalanceUSD'] ?? 0.0).toDouble();
             String tier = data['userTier'] ?? 'Freemium';
 
-            // 2. Logic condition: Stop execution cycle if Freemium users run out of tokens
             if (tier == 'Freemium' && currentBalance <= 0.0) {
               _timer?.cancel();
               if (mounted) {
@@ -366,13 +369,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     content: Text("Session closed automatically: Insufficient Balance!"),
                   ),
                 );
-                // Hard reset screen loop back to baseline Home tab
                 Navigator.of(context).popUntil((route) => route.isFirst);
               }
               return;
             }
 
-            // 3. Increment operation costs if credentials pass verification parameters
             if (mounted) {
               setState(() {
                 _seconds++;
@@ -380,14 +381,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               });
             }
 
-            // 4. Update the collection profile path on Europe servers (Only deduct for Freemium users)
             if (tier == 'Freemium') {
               await userDoc.update({
                 'walletBalanceUSD': FieldValue.increment(-widget.ratePerSecond),
                 'totalMinutesLearned': FieldValue.increment(1 / 60),
               });
             } else {
-              // Premium/Enterprise users don't pay per second, but we track their learning runtime metrics
               await userDoc.update({
                 'totalMinutesLearned': FieldValue.increment(1 / 60),
               });
@@ -590,7 +589,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(15),
         // ignore: deprecated_member_use
-        border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -620,7 +619,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     );
   }
 
-  // UPDATED: Changed currency formatting from ₦ to $ to align with Firestore variables
   Widget _buildMoneyMeter() {
     return Column(
       children: [
