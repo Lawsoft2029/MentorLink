@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class LiveSessionScreen extends StatefulWidget {
   final String sessionId; 
@@ -20,19 +23,27 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   final _codeWorkspaceController = TextEditingController(); 
   
   Timer? _sessionClockTimer;
-  Timer? _debounceTimer; // NEW: Controls the keystroke broadcast throttle buffer
-  StreamSubscription<DocumentSnapshot>? _sessionDocumentSubscription; // NEW: Listens for text edits from the other user
+  Timer? _debounceTimer; 
+  StreamSubscription<DocumentSnapshot>? _sessionDocumentSubscription; 
   
   int _secondsElapsed = 0;
   bool _isEnding = false; 
-  bool _isLocalUpdate = false; // NEW: Flags local changes to prevent infinite cursor feedback loops
+  bool _isLocalUpdate = false; 
+
+  // --- AGORA VIDEO VARIABLES ---
+  late RtcEngine _engine;
+  bool _isReady = false;
+  int? _remoteUid;
+  bool _muted = false;
+  bool _camEnabled = true;
 
   @override
   void initState() {
     super.initState();
     _startSessionStopwatch();
     _listenForLiveSessionUpdates();
-    _codeWorkspaceController.addListener(_onCodeTextChanged); // NEW: Watch for keypad input changes
+    _codeWorkspaceController.addListener(_onCodeTextChanged); 
+    _initAgora();
   }
 
   @override
@@ -42,7 +53,81 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     _sessionDocumentSubscription?.cancel();
     _codeWorkspaceController.removeListener(_onCodeTextChanged);
     _codeWorkspaceController.dispose(); 
+    if (!kIsWeb) {
+      _engine.leaveChannel();
+      _engine.release();
+    }
     super.dispose();
+  }
+
+  Future<void> _initAgora() async {
+    if (kIsWeb) {
+      if (mounted) setState(() => _isReady = true);
+      return;
+    }
+
+    try {
+      await [Permission.microphone, Permission.camera].request();
+      _engine = createAgoraRtcEngine();
+      await _engine.initialize(
+        const RtcEngineContext(
+          appId: "YOUR_AGORA_APP_ID", // Replace with your Agora App ID
+          channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+        ),
+      );
+
+      _engine.registerEventHandler(
+        RtcEngineEventHandler(
+          onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+            if (mounted) setState(() => _isReady = true);
+          },
+          onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
+            setState(() {
+              _remoteUid = remoteUid;
+            });
+          },
+          onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
+            setState(() {
+              _remoteUid = null;
+            });
+          },
+          onError: (ErrorCodeType err, String msg) {
+            debugPrint("Agora Error: $msg");
+          },
+        ),
+      );
+
+      await _engine.enableVideo();
+      await _engine.startPreview();
+      await _engine.joinChannel(
+        token: "YOUR_TOKEN", // Replace with your token or temp token
+        channelId: widget.sessionId, 
+        uid: 0,
+        options: const ChannelMediaOptions(
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+        ),
+      );
+    } catch (e) {
+      debugPrint("Agora Init Failed: $e");
+    }
+  }
+
+  void _onToggleMute() {
+    setState(() {
+      _muted = !_muted;
+    });
+    if (!kIsWeb) {
+      _engine.muteLocalAudioStream(_muted);
+    }
+  }
+
+  void _onToggleCamera() {
+    setState(() {
+      _camEnabled = !_camEnabled;
+    });
+    if (!kIsWeb) {
+      _engine.enableLocalVideo(_camEnabled);
+    }
   }
 
   void _startSessionStopwatch() {
@@ -55,7 +140,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
   }
 
-  // REAL-TIME SYNC LISTENER: Detects when the code text changes in the database
   void _listenForLiveSessionUpdates() {
     _sessionDocumentSubscription = FirebaseFirestore.instance
         .collection('sessions')
@@ -66,37 +150,32 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       
       final data = snapshot.data()!;
       
-      // Handle automatic session teardown if a user triggers completion
       if (data['status'] == 'completed') {
         _sessionClockTimer?.cancel();
         _showTerminationSummaryDialog(data);
         return;
       }
 
-      // Sync the incoming code text only if it didn't originate from this device
       final String remoteCode = data['sharedCodeCanvasText'] ?? '';
       if (remoteCode != _codeWorkspaceController.text) {
-        _isLocalUpdate = true; // Raise lock flag safely
+        _isLocalUpdate = true; 
         
-        // Save current cursor location configuration before replacing content
         final previousSelection = _codeWorkspaceController.selection;
         _codeWorkspaceController.text = remoteCode;
         
-        // Restore cursor selection parameters to avoid snapping text pointer to the front
         try {
           _codeWorkspaceController.selection = previousSelection;
         } catch (_) {
           _codeWorkspaceController.selection = TextSelection.collapsed(offset: remoteCode.length);
         }
         
-        _isLocalUpdate = false; // Drop lock flag
+        _isLocalUpdate = false; 
       }
     });
   }
 
-  // KEYSTROKE THROTTLE ENGINE: Debounces writes to avoid slamming Firestore on every single letter typed
   void _onCodeTextChanged() {
-    if (_isLocalUpdate) return; // Ignore updates that come from the database listener
+    if (_isLocalUpdate) return; 
 
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
     
@@ -122,6 +201,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     setState(() => _isEnding = true);
     _sessionClockTimer?.cancel();
     _debounceTimer?.cancel();
+
+    if (!kIsWeb) {
+      _engine.leaveChannel();
+    }
 
     final sessionRef = FirebaseFirestore.instance.collection('sessions').doc(widget.sessionId);
     
@@ -239,9 +322,62 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       ),
       body: Column(
         children: [
+          // --- AGORA VIDEO CONTAINER ---
+          Container(
+            height: 180,
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: _remoteUid != null && !kIsWeb
+                      ? AgoraVideoView(
+                          controller: VideoViewController.remote(
+                            rtcEngine: _engine,
+                            canvas: VideoCanvas(uid: _remoteUid),
+                            connection: RtcConnection(channelId: widget.sessionId),
+                          ),
+                        )
+                      : const Text(
+                          'Waiting for other participant...',
+                          style: TextStyle(color: Colors.white54, fontSize: 13),
+                        ),
+                ),
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: SizedBox(
+                      width: 80,
+                      height: 100,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _isReady && _camEnabled && !kIsWeb
+                            ? AgoraVideoView(
+                                controller: VideoViewController(
+                                  rtcEngine: _engine,
+                                  canvas: const VideoCanvas(uid: 0),
+                                ),
+                              )
+                            : Container(
+                                color: Colors.grey[800],
+                                child: const Icon(Icons.videocam_off, color: Colors.white, size: 20),
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // --- CODE CANVAS CONTAINER ---
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E1E), 
@@ -289,27 +425,48 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               ),
             ),
           ),
+
+          // --- CONTROL BUTTONS & END SESSION ---
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: _isEnding
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF00796B)))
-                : SizedBox(
-                    width: double.infinity,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                FloatingActionButton(
+                  heroTag: 'mentor_mute',
+                  onPressed: _onToggleMute,
+                  backgroundColor: _muted ? Colors.red : Colors.grey.shade200,
+                  child: Icon(_muted ? Icons.mic_off : Icons.mic, color: _muted ? Colors.white : Colors.black87),
+                ),
+                FloatingActionButton(
+                  heroTag: 'mentor_cam',
+                  onPressed: _onToggleCamera,
+                  backgroundColor: !_camEnabled ? Colors.red : Colors.grey.shade200,
+                  child: Icon(_camEnabled ? Icons.videocam : Icons.videocam_off, color: !_camEnabled ? Colors.white : Colors.black87),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
                     height: 55,
-                    child: ElevatedButton.icon(
-                      onPressed: _endLiveSessionChannel,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      ),
-                      icon: const Icon(Icons.call_end, color: Colors.white),
-                      label: const Text("End Telemetry Handshake", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    ),
+                    child: _isEnding
+                        ? const Center(child: CircularProgressIndicator(color: Color(0xFF00796B)))
+                        : ElevatedButton.icon(
+                            onPressed: _endLiveSessionChannel,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            ),
+                            icon: const Icon(Icons.call_end, color: Colors.white),
+                            label: const Text("End Session", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
                   ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

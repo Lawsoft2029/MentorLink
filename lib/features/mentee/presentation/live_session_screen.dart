@@ -12,14 +12,14 @@ import 'package:highlight/languages/dart.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_auth/firebase_auth.dart'; 
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LiveSessionScreen extends StatefulWidget {
-  final String sessionId; // UPDATED: Added to match mentor configuration parameters
-  final String role;      // UPDATED: Added to track user role ('mentee' / 'mentor')
+  final String sessionId;
+  final String role;
   final double ratePerSecond = 0.10 / 60;
-  
+
   const LiveSessionScreen({
     super.key,
     required this.sessionId,
@@ -36,10 +36,15 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   double _totalCost = 0.0;
   Timer? _timer;
 
+  // --- AGORA VIDEO VARIABLES ---
   late RtcEngine _engine;
   bool _isCodeView = false;
   bool _isScreenSharing = false;
   bool _isReady = false;
+  int? _remoteUid;
+  bool _muted = false;
+  // ignore: prefer_final_fields
+  bool _camEnabled = true;
 
   // --- CHAT LOGIC ---
   final List<Map<String, String>> _messages = [];
@@ -285,7 +290,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   Future<void> _initAgora() async {
     if (kIsWeb) {
-      debugPrint("Agora Web running in Offline-UI mode.");
       if (mounted) setState(() => _isReady = true);
       return;
     }
@@ -295,7 +299,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       _engine = createAgoraRtcEngine();
       await _engine.initialize(
         const RtcEngineContext(
-          appId: "YOUR_AGORA_APP_ID",
+          appId: "YOUR_AGORA_APP_ID", // Replace with your Agora App ID
           channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
         ),
       );
@@ -305,6 +309,21 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
             if (mounted) setState(() => _isReady = true);
           },
+          onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
+            setState(() {
+              _remoteUid = remoteUid;
+            });
+          },
+          onUserOffline:
+              (
+                RtcConnection connection,
+                int remoteUid,
+                UserOfflineReasonType reason,
+              ) {
+                setState(() {
+                  _remoteUid = null;
+                });
+              },
           onError: (ErrorCodeType err, String msg) {
             debugPrint("Agora Error: $msg");
           },
@@ -314,8 +333,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       await _engine.enableVideo();
       await _engine.startPreview();
       await _engine.joinChannel(
-        token: "YOUR_TOKEN",
-        channelId: widget.sessionId, // UPDATED: Use sessionId as the live channel name
+        token: "YOUR_TOKEN", // Replace with your token or temp token
+        channelId: widget.sessionId,
         uid: 0,
         options: const ChannelMediaOptions(
           clientRoleType: ClientRoleType.clientRoleBroadcaster,
@@ -323,6 +342,15 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       );
     } catch (e) {
       debugPrint("Agora Init Failed: $e");
+    }
+  }
+
+  void _onToggleMute() {
+    setState(() {
+      _muted = !_muted;
+    });
+    if (!kIsWeb) {
+      _engine.muteLocalAudioStream(_muted);
     }
   }
 
@@ -349,15 +377,16 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   void _startSession() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       final uid = FirebaseAuth.instance.currentUser?.uid;
-      
+
       if (uid != null) {
         final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
-        
+
         try {
           final docSnapshot = await userDoc.get();
           if (docSnapshot.exists) {
             final data = docSnapshot.data() as Map<String, dynamic>;
-            double currentBalance = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+            double currentBalance = (data['walletBalanceUSD'] ?? 0.0)
+                .toDouble();
             String tier = data['userTier'] ?? 'Freemium';
 
             if (tier == 'Freemium' && currentBalance <= 0.0) {
@@ -366,7 +395,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     backgroundColor: Colors.redAccent,
-                    content: Text("Session closed automatically: Insufficient Balance!"),
+                    content: Text(
+                      "Session closed automatically: Insufficient Balance!",
+                    ),
                   ),
                 );
                 Navigator.of(context).popUntil((route) => route.isFirst);
@@ -432,6 +463,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 _timer?.cancel();
                 _seconds = 0;
               });
+              Navigator.of(context).popUntil((route) => route.isFirst);
             },
             child: const Text("Yes"),
           ),
@@ -449,16 +481,84 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildTopBar(),
             const SizedBox(height: 10),
-            Expanded(
-              child: _isCodeView ? _buildCodeEditor() : _buildVideoArea(),
+
+            // --- AGORA VIDEO CONTAINER / CODE EDITOR ---
+            if (_isCodeView)
+              Expanded(child: _buildCodeEditor())
+            else
+              Container(
+                height: 160,
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: _remoteUid != null && !kIsWeb
+                          ? AgoraVideoView(
+                              controller: VideoViewController.remote(
+                                rtcEngine: _engine,
+                                canvas: VideoCanvas(uid: _remoteUid),
+                                connection: RtcConnection(
+                                  channelId: widget.sessionId,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              'Waiting for mentor to join...',
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 13,
+                              ),
+                            ),
+                    ),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: SizedBox(
+                          width: 80,
+                          height: 100,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: _isReady && _camEnabled && !kIsWeb
+                                ? AgoraVideoView(
+                                    controller: VideoViewController(
+                                      rtcEngine: _engine,
+                                      canvas: const VideoCanvas(uid: 0),
+                                    ),
+                                  )
+                                : Container(
+                                    color: Colors.grey[800],
+                                    child: const Icon(
+                                      Icons.videocam_off,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 10),
+            _callAction(
+              _isCodeView ? Icons.videocam : Icons.code,
+              _isCodeView ? Colors.orange : Colors.white24,
+              onTap: () => setState(() => _isCodeView = !_isCodeView),
             ),
             _buildMoneyMeter(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildControlBar(),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -531,13 +631,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         children: [
           Row(
             children: [
-              if (_isCodeView)
-                IconButton(
-                  icon: const Icon(Icons.folder, color: Colors.greenAccent),
-                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                ),
+              IconButton(
+                icon: const Icon(Icons.folder, color: Colors.greenAccent),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
               const Text(
-                "Live Session",
+                "Mentee Session",
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ],
@@ -555,40 +654,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     );
   }
 
-  Widget _buildVideoArea() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: _isReady
-          ? (kIsWeb
-              ? const Center(
-                  child: Text(
-                    "Agora Web Preview Active",
-                    style: TextStyle(color: Colors.white54),
-                  ),
-                )
-              : AgoraVideoView(
-                  controller: VideoViewController(
-                    rtcEngine: _engine,
-                    canvas: const VideoCanvas(uid: 0),
-                  ),
-                ))
-          : const Center(
-              child: Icon(Icons.person, size: 80, color: Colors.white24),
-            ),
-    );
-  }
-
   Widget _buildCodeEditor() {
     return Container(
-      margin: const EdgeInsets.all(15),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(15),
-        // ignore: deprecated_member_use
         border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -622,12 +693,19 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   Widget _buildMoneyMeter() {
     return Column(
       children: [
-        const Text("SESSION ACCRUED COST", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+        const Text(
+          "SESSION ACCRUED COST",
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         Text(
           "\$${_totalCost.toStringAsFixed(4)}",
           style: const TextStyle(
             color: Colors.greenAccent,
-            fontSize: 24,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -639,7 +717,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _callAction(Icons.mic, Colors.white24),
+        _callAction(
+          _muted ? Icons.mic_off : Icons.mic,
+          _muted ? Colors.red : Colors.white24,
+          onTap: _onToggleMute,
+        ),
         _callAction(
           Icons.laptop_windows,
           const Color(0xFF333697),
@@ -664,9 +746,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     return InkWell(
       onTap: onTap,
       child: CircleAvatar(
-        radius: 28,
+        radius: 26,
         backgroundColor: color,
-        child: Icon(icon, color: Colors.white, size: 24),
+        child: Icon(icon, color: Colors.white, size: 22),
       ),
     );
   }
