@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,13 @@ import 'package:mentorlinks_app_project/features/auth/logic/auth_gate.dart';
 import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
 import 'package:mentorlinks_app_project/features/auth/presentation/tier_selection_screen.dart';
 import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dashboard.dart';
+
+// --- BACKGROUND MESSAGING HANDLER ---
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint("Handling background notification: ${message.messageId}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
