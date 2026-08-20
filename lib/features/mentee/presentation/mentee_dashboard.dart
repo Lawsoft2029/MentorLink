@@ -7,6 +7,7 @@ import 'package:mentorlinks_app_project/shared/widgets/star_rating_widget.dart';
 import 'wallet_screen.dart';
 import 'vault_screen.dart';
 import 'live_session_screen.dart';
+import 'ad_pass_screen.dart'; // IMPORTED THE AD PASS SCREEN
 
 class MenteeDashboard extends StatefulWidget {
   const MenteeDashboard({super.key});
@@ -19,12 +20,20 @@ class _MenteeDashboardState extends State<MenteeDashboard> {
   int _selectedIndex = 0;
 
   // The pages used for the Bottom Navigation
-  final List<Widget> _pages = [
-    const HomeScreenContent(),
-    const WalletScreen(),
-    const VaultScreen(),
-    const LiveSessionScreen(sessionId: 'default_session', role: 'mentee'),
-  ];
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      HomeScreenContent(
+        onNavigateToLive: () => setState(() => _selectedIndex = 3),
+      ),
+      const WalletScreen(),
+      const VaultScreen(),
+      const LiveSessionScreen(sessionId: 'default_session', role: 'mentee'),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,14 +57,16 @@ class _MenteeDashboardState extends State<MenteeDashboard> {
 }
 
 class HomeScreenContent extends StatelessWidget {
-  const HomeScreenContent({super.key});
+  const HomeScreenContent({super.key, required this.onNavigateToLive});
 
-  Future<void> _watchAdAndEarn() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
-      await userDoc.update({'walletBalanceUSD': FieldValue.increment(0.05)});
-    }
+  final VoidCallback onNavigateToLive;
+
+  Future<void> _watchAdAndEarn(BuildContext context) async {
+    // ROUTED TO AD PASS SCREEN TO UNLOCK STUDY PASS HOURS
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AdPassUnlockScreen()),
+    );
   }
 
   @override
@@ -97,9 +108,9 @@ class HomeScreenContent extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: uid != null
             ? FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .snapshots()
+                .collection('users')
+                .doc(uid)
+                .snapshots()
             : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -160,7 +171,7 @@ class HomeScreenContent extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            "Watch short ads to load tokens into your operational wallet instantly.",
+                            "Watch short ads to unlock 1-hour study passes for your sessions.",
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.black87,
@@ -170,13 +181,13 @@ class HomeScreenContent extends StatelessWidget {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: _watchAdAndEarn,
+                              onPressed: () => _watchAdAndEarn(context),
                               icon: const Icon(
                                 Icons.play_circle_filled,
                                 color: Colors.white,
                               ),
                               label: const Text(
-                                "Simulate Ad (Earn \$0.05)",
+                                "Watch Ad (Unlock Study Pass)",
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -216,7 +227,6 @@ class HomeScreenContent extends StatelessWidget {
                         child: Icon(Icons.person, color: Colors.white),
                       ),
                       title: const Text("Expert Developer"),
-                      // INTEGRATED STAR RATING WIDGET IN SUBTITLE
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -225,8 +235,7 @@ class HomeScreenContent extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           StarRatingWidget(
-                            rating:
-                                4.8, // You can link this dynamically from Firestore later
+                            rating: 4.8,
                             reviewCount: 128,
                           ),
                         ],
@@ -255,16 +264,7 @@ class HomeScreenContent extends StatelessWidget {
                                 ),
                               );
 
-                              final parentState = context
-                                  .findAncestorStateOfType<
-                                    _MenteeDashboardState
-                                  >();
-                              if (parentState != null) {
-                                // ignore: invalid_use_of_protected_member
-                                parentState.setState(() {
-                                  parentState._selectedIndex = 3;
-                                });
-                              }
+                              onNavigateToLive();
                             }
                           } else {
                             if (context.mounted) {
@@ -272,7 +272,7 @@ class HomeScreenContent extends StatelessWidget {
                                 const SnackBar(
                                   backgroundColor: Colors.redAccent,
                                   content: Text(
-                                    "Insufficient Balance! Simulate an ad to earn connection tokens.",
+                                    "Insufficient Balance! Watch an ad to unlock study time.",
                                   ),
                                 ),
                               );

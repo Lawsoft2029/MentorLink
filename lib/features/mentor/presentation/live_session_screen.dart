@@ -29,6 +29,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   int _secondsElapsed = 0;
   bool _isEnding = false; 
   bool _isLocalUpdate = false; 
+  bool _isPaused = false; 
 
   // --- AGORA VIDEO VARIABLES ---
   late RtcEngine _engine;
@@ -130,9 +131,21 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     }
   }
 
+  // --- TOGGLE SHARED BREAK STATE ---
+  Future<void> _toggleBreak() async {
+    final newPauseState = !_isPaused;
+    setState(() {
+      _isPaused = newPauseState;
+    });
+
+    await FirebaseFirestore.instance.collection('sessions').doc(widget.sessionId).update({
+      'isPaused': newPauseState,
+    });
+  }
+
   void _startSessionStopwatch() {
     _sessionClockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
+      if (!_isPaused && mounted) {
         setState(() {
           _secondsElapsed++;
         });
@@ -154,6 +167,13 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         _sessionClockTimer?.cancel();
         _showTerminationSummaryDialog(data);
         return;
+      }
+
+      final bool remotePauseState = data['isPaused'] ?? false;
+      if (remotePauseState != _isPaused) {
+        setState(() {
+          _isPaused = remotePauseState;
+        });
       }
 
       final String remoteCode = data['sharedCodeCanvasText'] ?? '';
@@ -211,14 +231,23 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     try {
       final snapshot = await sessionRef.get();
       final data = snapshot.data() ?? {};
-      final double ratePerMin = (data['connectionRatePerMin'] ?? 0.20).toDouble();
+      
+      // Standard platform rate of $0.10 per minute
+      const double ratePerMin = 0.10;
 
-      final int totalMinutes = (_secondsElapsed / 60).ceil();
+      int totalMinutes = (_secondsElapsed / 60).ceil();
+      if (totalMinutes < 1 && _secondsElapsed > 0) {
+        totalMinutes = 1;
+      }
+
       final double totalCostUSD = totalMinutes * ratePerMin;
 
-      await sessionRef.update({
+      // Atomic batch write for session completion & mentor earnings credit
+      final batch = FirebaseFirestore.instance.batch();
+
+      batch.update(sessionRef, {
         'status': 'completed',
-        'durationSeconds': _secondsElapsed,
+        'totalMinutesTaught': totalMinutes,
         'finalCostUSD': totalCostUSD,
         'endedAt': FieldValue.serverTimestamp(),
       });
@@ -226,13 +255,18 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       if (widget.role == 'mentor') {
         final mentorUid = data['mentorId'];
         if (mentorUid != null) {
-          await FirebaseFirestore.instance.collection('users').doc(mentorUid).update({
+          final mentorRef = FirebaseFirestore.instance.collection('users').doc(mentorUid);
+          batch.update(mentorRef, {
             'mentorEarningsUSD': FieldValue.increment(totalCostUSD),
             'isOnline': false, 
           });
-          await FirebaseFirestore.instance.collection('available_mentors').doc(mentorUid).delete();
+          
+          // Clean up availability node if present
+          batch.delete(FirebaseFirestore.instance.collection('available_mentors').doc(mentorUid));
         }
       }
+
+      await batch.commit();
 
     } catch (e) {
       if (mounted) {
@@ -262,7 +296,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           children: [
             Text("Duration: ${_formatDigitalClock(sessionData['durationSeconds'] ?? _secondsElapsed)}"),
             const SizedBox(height: 8),
-            Text("Total Cost: \$${(sessionData['finalCostUSD'] ?? 0.00).toStringAsFixed(2)}"),
+            Text("Total Earnings Credited: \$${(sessionData['finalCostUSD'] ?? 0.00).toStringAsFixed(2)}"),
             const SizedBox(height: 12),
             const Text(
               "Session balance metrics synchronized successfully across account profiles.",
@@ -298,21 +332,40 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         elevation: 1,
         automaticallyImplyLeading: false,
         actions: [
+          if (_isPaused)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  "PAUSED",
+                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withValues(alpha: 0.1),
+                color: _isPaused ? Colors.orange.withValues(alpha: 0.1) : Colors.redAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.fiber_manual_record, color: Colors.red, size: 12),
+                  Icon(Icons.fiber_manual_record, color: _isPaused ? Colors.orange : Colors.red, size: 12),
                   const SizedBox(width: 6),
                   Text(
                     _formatDigitalClock(_secondsElapsed),
-                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
+                    style: TextStyle(
+                      color: _isPaused ? Colors.orange.shade800 : Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
@@ -322,7 +375,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       ),
       body: Column(
         children: [
-          // --- AGORA VIDEO CONTAINER ---
           Container(
             height: 180,
             margin: const EdgeInsets.all(16),
@@ -374,7 +426,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             ),
           ),
           
-          // --- CODE CANVAS CONTAINER ---
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -426,7 +477,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             ),
           ),
 
-          // --- CONTROL BUTTONS & END SESSION ---
           Container(
             padding: const EdgeInsets.all(20),
             decoration: const BoxDecoration(
@@ -447,6 +497,15 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                   onPressed: _onToggleCamera,
                   backgroundColor: !_camEnabled ? Colors.red : Colors.grey.shade200,
                   child: Icon(_camEnabled ? Icons.videocam : Icons.videocam_off, color: !_camEnabled ? Colors.white : Colors.black87),
+                ),
+                FloatingActionButton(
+                  heroTag: 'mentor_break',
+                  onPressed: _toggleBreak,
+                  backgroundColor: _isPaused ? Colors.green.shade100 : Colors.orange.shade100,
+                  child: Icon(
+                    _isPaused ? Icons.play_arrow : Icons.pause,
+                    color: _isPaused ? Colors.green.shade800 : Colors.orange.shade800,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(

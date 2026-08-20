@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// Ensure this import matches your interests_screen.dart file name
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
 
 class MenteeAuthScreen extends StatefulWidget {
@@ -28,7 +28,6 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
 
   // --- FIREBASE AUTH LOGIC ---
   Future<void> _handleAuth() async {
-    // Basic validation for offline development
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill in all fields")),
@@ -54,14 +53,33 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
         await userCredential.user?.updateDisplayName(
           _nameController.text.trim(),
         );
+
+        // --- INITIALIZE FIRESTORE SCHEMA WITH MULTI-COURSE ENROLLMENT SUPPORT ---
+        final uid = userCredential.user?.uid;
+        if (uid != null) {
+          await FirebaseFirestore.instance.collection('users').doc(uid).set({
+            'uid': uid,
+            'name': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'role': 'mentee',
+            'userTier': 'Freemium',
+            'isPremium': false,
+            'sessionCreditsHours': 0.0, // Hours unlocked via ads
+            'walletBalanceUSD': 0.0,
+            'mentorEarningsUSD': 0.0,
+            'connectionRatePerMin': 0.10,
+            'enrolledCourses': [], // List of selected dynamic course IDs
+            'courseTimelines': {}, // Map of courseId -> months duration
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
       }
 
       if (mounted) {
-        // UPDATED NAVIGATION: Moving to your InterestsScreen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const CourseSelectionScreen(), 
+            builder: (context) => const CourseSelectionScreen(),
           ),
         );
       }
@@ -190,7 +208,7 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
             _socialButton(
               label: "Continue with Google",
               icon: Icons.g_mobiledata,
-              onTap: () {}, 
+              onTap: () {},
             ),
 
             const SizedBox(height: 30),

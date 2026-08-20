@@ -35,6 +35,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   int _seconds = 0;
   double _totalCost = 0.0;
   Timer? _timer;
+  bool _isPaused = false; // --- ADDED BREAK PAUSE STATE ---
 
   // --- AGORA VIDEO VARIABLES ---
   late RtcEngine _engine;
@@ -299,7 +300,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       _engine = createAgoraRtcEngine();
       await _engine.initialize(
         const RtcEngineContext(
-          appId: "YOUR_AGORA_APP_ID", // Replace with your Agora App ID
+          appId: "YOUR_AGORA_APP_ID",
           channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
         ),
       );
@@ -314,16 +315,15 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               _remoteUid = remoteUid;
             });
           },
-          onUserOffline:
-              (
-                RtcConnection connection,
-                int remoteUid,
-                UserOfflineReasonType reason,
-              ) {
-                setState(() {
-                  _remoteUid = null;
-                });
-              },
+          onUserOffline: (
+            RtcConnection connection,
+            int remoteUid,
+            UserOfflineReasonType reason,
+          ) {
+            setState(() {
+              _remoteUid = null;
+            });
+          },
           onError: (ErrorCodeType err, String msg) {
             debugPrint("Agora Error: $msg");
           },
@@ -333,7 +333,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       await _engine.enableVideo();
       await _engine.startPreview();
       await _engine.joinChannel(
-        token: "YOUR_TOKEN", // Replace with your token or temp token
+        token: "YOUR_TOKEN",
         channelId: widget.sessionId,
         uid: 0,
         options: const ChannelMediaOptions(
@@ -376,6 +376,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   void _startSession() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_isPaused) return; // Skip counting or charging when paused for break
+
       final uid = FirebaseAuth.instance.currentUser?.uid;
 
       if (uid != null) {
@@ -446,8 +448,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Confirm Exit"),
-        content: const Text("Save progress and end session?"),
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: const Text("Confirm Exit", style: TextStyle(color: Colors.white)),
+        content: const Text(
+          "Save progress and end session?",
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -465,7 +471,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               });
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
-            child: const Text("Yes"),
+            child: const Text("Yes", style: TextStyle(color: Colors.greenAccent)),
           ),
         ],
       ),
@@ -550,11 +556,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               ),
 
             const SizedBox(height: 10),
-            _callAction(
-              _isCodeView ? Icons.videocam : Icons.code,
-              _isCodeView ? Colors.orange : Colors.white24,
-              onTap: () => setState(() => _isCodeView = !_isCodeView),
-            ),
             _buildMoneyMeter(),
             const SizedBox(height: 10),
             _buildControlBar(),
@@ -641,13 +642,35 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               ),
             ],
           ),
-          Text(
-            "${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              // --- BREAK STATUS BADGE ---
+              if (_isPaused)
+                Container(
+                  margin: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    "PAUSED",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              Text(
+                "${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -693,10 +716,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   Widget _buildMoneyMeter() {
     return Column(
       children: [
-        const Text(
-          "SESSION ACCRUED COST",
+        Text(
+          _isPaused ? "SESSION PAUSED (NO CHARGE)" : "SESSION ACCRUED COST",
           style: TextStyle(
-            color: Colors.grey,
+            color: _isPaused ? Colors.orangeAccent : Colors.grey,
             fontSize: 10,
             fontWeight: FontWeight.bold,
           ),
@@ -721,6 +744,24 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           _muted ? Icons.mic_off : Icons.mic,
           _muted ? Colors.red : Colors.white24,
           onTap: _onToggleMute,
+        ),
+        // --- ADDED BREAK PAUSE/RESUME TOGGLE BUTTON ---
+        _callAction(
+          _isPaused ? Icons.play_arrow : Icons.pause,
+          _isPaused ? Colors.green : Colors.orange,
+          onTap: () {
+            setState(() {
+              _isPaused = !_isPaused;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  _isPaused ? "Class paused. Billing halted." : "Class resumed.",
+                ),
+                duration: const Duration(seconds: 1),
+              ),
+            );
+          },
         ),
         _callAction(
           Icons.laptop_windows,
