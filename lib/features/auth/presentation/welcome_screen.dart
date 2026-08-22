@@ -21,13 +21,22 @@ class WelcomeScreen extends StatelessWidget {
                 width: 120,
                 decoration: BoxDecoration(
                   // FIXED: Swapped out deprecated withOpacity method call for modern withValues standard
-                  color: const Color(0xFF333697).withValues(alpha: 0.1), // Updated for stable API compatibility
+                  color: const Color(0xFF333697).withValues(
+                    alpha: 0.1,
+                  ), // Updated for stable API compatibility
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.link, // Replace this icon with your Image.asset logo later
-                  size: 60,
-                  color: Color(0xFF333697),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Image.asset(
+                    'assets/images/app_logo.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.link,
+                      size: 60,
+                      color: Color(0xFF333697),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 40),
@@ -103,7 +112,11 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     "I am a Mentor", // UPDATED: Clear onboarding copy adjustment
-                    style: TextStyle(fontSize: 18, color: Color(0xFF00796B), fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Color(0xFF00796B),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

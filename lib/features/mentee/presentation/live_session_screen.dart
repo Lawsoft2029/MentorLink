@@ -1,4 +1,4 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: prefer_final_fields, curly_braces_in_flow_control_structures
 
 import 'dart:async';
 import 'dart:io';
@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mentorlinks_app_project/features/chat/presentation/mentor_review_dialog.dart';
 
 class LiveSessionScreen extends StatefulWidget {
   final String sessionId;
@@ -35,7 +36,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   int _seconds = 0;
   double _totalCost = 0.0;
   Timer? _timer;
-  bool _isPaused = false; // --- ADDED BREAK PAUSE STATE ---
+  bool _isPaused = false; 
 
   // --- AGORA VIDEO VARIABLES ---
   late RtcEngine _engine;
@@ -44,7 +45,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   bool _isReady = false;
   int? _remoteUid;
   bool _muted = false;
-  // ignore: prefer_final_fields
   bool _camEnabled = true;
 
   // --- CHAT LOGIC ---
@@ -376,7 +376,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   void _startSession() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      if (_isPaused) return; // Skip counting or charging when paused for break
+      if (_isPaused) return; 
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
 
@@ -463,13 +463,36 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             onPressed: () async {
               await _saveFilesLocally();
               if (!mounted) return;
-              Navigator.pop(context);
+              Navigator.pop(context); // Close confirmation dialog
 
               setState(() {
                 _timer?.cancel();
                 _seconds = 0;
               });
+
+              // Fetch session document to grab mentorUid for review prompt
+              final sessionDoc = await FirebaseFirestore.instance
+                  .collection('sessions')
+                  .doc(widget.sessionId)
+                  .get();
+              
+              final sessionData = sessionDoc.data() ?? {};
+              final mentorUid = sessionData['mentorId'];
+
+              if (!mounted) return;
               Navigator.of(context).popUntil((route) => route.isFirst);
+
+              // --- TRIGGER REVIEW & RATING POPUP AFTER EXITING ---
+              if (mentorUid != null) {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => MentorReviewDialog(
+                    mentorUid: mentorUid,
+                    sessionId: widget.sessionId,
+                  ),
+                );
+              }
             },
             child: const Text("Yes", style: TextStyle(color: Colors.greenAccent)),
           ),
@@ -491,7 +514,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             _buildTopBar(),
             const SizedBox(height: 10),
 
-            // --- AGORA VIDEO CONTAINER / CODE EDITOR ---
             if (_isCodeView)
               Expanded(child: _buildCodeEditor())
             else
@@ -644,7 +666,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           ),
           Row(
             children: [
-              // --- BREAK STATUS BADGE ---
               if (_isPaused)
                 Container(
                   margin: const EdgeInsets.only(right: 10),
@@ -745,7 +766,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           _muted ? Colors.red : Colors.white24,
           onTap: _onToggleMute,
         ),
-        // --- ADDED BREAK PAUSE/RESUME TOGGLE BUTTON ---
         _callAction(
           _isPaused ? Icons.play_arrow : Icons.pause,
           _isPaused ? Colors.green : Colors.orange,
@@ -782,7 +802,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       ],
     );
   }
-
+  
   Widget _callAction(IconData icon, Color color, {VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
