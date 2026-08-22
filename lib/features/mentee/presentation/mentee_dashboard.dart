@@ -8,6 +8,7 @@ import 'wallet_screen.dart';
 import 'vault_screen.dart';
 import 'live_session_screen.dart';
 import 'ad_pass_screen.dart'; // IMPORTED THE AD PASS SCREEN
+import 'mentee_subscription_screen.dart';
 
 class MenteeDashboard extends StatefulWidget {
   const MenteeDashboard({super.key});
@@ -138,6 +139,51 @@ class HomeScreenContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // --- PRO UPGRADE BANNER (ADDED HERE) ---
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MenteeSubscriptionScreen()),
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF333697), Color(0xFF5C62D6)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.star, color: Colors.amber, size: 30),
+                        SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Upgrade to MentorLinks Pro",
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                "Enjoy ad-free learning & priority matching.",
+                                style: TextStyle(color: Colors.white70, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 14),
+                      ],
+                    ),
+                  ),
+                ),
+
                 _buildStatCards(learningHours, walletBalanceUSD),
 
                 if (userTier == 'Freemium')

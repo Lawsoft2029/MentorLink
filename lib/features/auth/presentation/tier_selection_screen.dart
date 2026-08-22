@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'enterprise_register_screen.dart'; // IMPORTED THE ENTERPRISE REGISTRATION SCREEN
 
 class TierSelectionScreen extends StatelessWidget {
   const TierSelectionScreen({super.key});
 
-  // Function to update the user's tier in Firebase
+  // Function to update the user's tier in Firebase for Freemium / Premium
   Future<void> _selectTier(BuildContext context, String tier) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      // UPDATED: Added initialization variables for the economy/wallet framework
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'userTier': tier,
         'isPremium': tier != 'Freemium',
-        'walletBalanceUSD': tier == 'Freemium' ? 0.00 : 20.00, // $0 for Free, $20 baseline starter value for others
+        'walletBalanceUSD': tier == 'Freemium' ? 0.00 : 20.00,
         'totalMinutesLearned': 0,
       }, SetOptions(merge: true));
       
-      // Navigate to your Dashboard
       if (context.mounted) {
         Navigator.pushReplacementNamed(context, '/mentee-dashboard');
       }
@@ -27,9 +26,9 @@ class TierSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Deep professional navy
+      backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
-        title: const Text("Choose Your Path"),
+        title: const Text("Choose Your Path", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -70,17 +69,19 @@ class TierSelectionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // --- ENTERPRISE CARD (The New Addition) ---
+            // --- ENTERPRISE CARD (ROUTES TO REGISTRATION FORM) ---
             _buildTierCard(
               context,
               title: "Enterprise",
-              price: "Custom",
+              price: "\$499 / mo",
               description: "For Hubs, Schools, and Teams.",
               features: ["Bulk User Licenses", "Admin Dashboard", "Private Mentorship", "Custom API Access"],
               color: Colors.purpleAccent,
               onTap: () {
-                // For Enterprise, we usually route to a contact form or a custom logic
-                _selectTier(context, "Enterprise");
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const EnterpriseRegisterScreen()),
+                );
               },
             ),
             const SizedBox(height: 40),

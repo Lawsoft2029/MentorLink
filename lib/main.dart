@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // IMPORT DOTENV
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,9 +16,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   debugPrint("Handling background notification: ${message.messageId}");
 }
+  
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // LOAD SECURE ENVIRONMENT VARIABLES FROM .env
+  await dotenv.load(fileName: ".env");
 
   GoogleFonts.config.allowRuntimeFetching = true;
   

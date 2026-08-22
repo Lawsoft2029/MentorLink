@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // REQUIRED: Unlocks the kDebugMode detection token
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../mentor/presentation/mentor_registration_screen.dart';
-import '../../mentor/presentation/mentor_dashboard.dart';
-
 class MentorAuthScreen extends StatefulWidget {
   const MentorAuthScreen({super.key});
 
@@ -26,59 +23,6 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  // DEVELOPER BYPASS MACRO: Instantly injects full approval into Firestore sandbox
-  Future<void> _bypassDirectToDashboard() async {
-    setState(() => _isLoading = true);
-    final auth = FirebaseAuth.instance;
-    final firestore = FirebaseFirestore.instance;
-
-    try {
-      UserCredential userCredential;
-      // 1. Authenticate using a unified persistent debug testing profile account
-      try {
-        userCredential = await auth.signInWithEmailAndPassword(
-          email: "sandbox-mentor@mentorlinks.test",
-          password: "password123",
-        );
-      } catch (_) {
-        userCredential = await auth.createUserWithEmailAndPassword(
-          email: "sandbox-mentor@mentorlinks.test",
-          password: "password123",
-        );
-      }
-
-      // 2. Overwrite user data mapping with full, automatic validation permissions
-      await firestore.collection('users').doc(userCredential.user!.uid).set({
-        'uid': userCredential.user!.uid,
-        'email': "sandbox-mentor@mentorlinks.test",
-        'role': 'mentor',
-        'accountType': 'mentor', // FIXED: Ensures the AuthGate routing streams see the role assignment instantly
-        'expertiseTag': 'Automated Debug Profile (PLC / Flutter)',
-        'bio': 'Sandbox bypass active for real-time connection telemetry simulation tests.',
-        'githubUrl': 'https://github.com',
-        'linkedinUrl': 'https://linkedin.com',
-        'connectionRatePerMin': 0.50,
-        'mentorEarningsUSD': 120.00, // Pre-populating some test earnings
-        'isApproved': true,          // Bypasses warning banner flags completely
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const MentorDashboard()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Bypass Failure: $e")));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   Future<void> _handleAuthentication() async {
@@ -148,23 +92,6 @@ class _MentorAuthScreenState extends State<MentorAuthScreen> {
         backgroundColor: Colors.white, 
         elevation: 0, 
         foregroundColor: Colors.black,
-        actions: [
-          // SANDBOX ACTION LINK CONTAINER: Only visible inside development workspace
-          if (kDebugMode)
-            Padding(
-              padding: const EdgeInsets.only(right: 12.0),
-              child: TextButton.icon(
-                onPressed: _bypassDirectToDashboard,
-                icon: const Icon(Icons.speed, color: Colors.amber, size: 18),
-                label: const Text(
-                  "Bypass Onboarding",
-                  style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                // FIXED: Migrated from deprecated withOpacity standard to active withValues ecosystem standard
-                style: TextButton.styleFrom(backgroundColor: Colors.amber.withValues(alpha: 0.1)),
-              ),
-            ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: mentorAccentColor))
