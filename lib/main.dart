@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // IMPORT DOTENV
@@ -9,6 +11,7 @@ import 'features/auth/presentation/splash_screen.dart';
 import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
 import 'package:mentorlinks_app_project/features/auth/presentation/tier_selection_screen.dart';
 import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dashboard.dart';
+import 'package:mentorlinks_app_project/features/home/presentation/main_dashboard_screen.dart'; // ADDED MAIN DASHBOARD IMPORT
 
 // --- BACKGROUND MESSAGING HANDLER ---
 @pragma('vm:entry-point')
@@ -23,6 +26,12 @@ void main() async {
 
   // LOAD SECURE ENVIRONMENT VARIABLES FROM .env
   await dotenv.load(fileName: ".env");
+
+  // ENABLE OFFLINE CACHING / PERSISTENCE
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
 
   GoogleFonts.config.allowRuntimeFetching = true;
   
@@ -49,6 +58,31 @@ void main() async {
   );
 }
 
+class AuthCheckWrapper extends StatelessWidget {
+  const AuthCheckWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator(color: Color(0xFF333697))),
+          );
+        }
+
+        if (snapshot.hasData && snapshot.data != null) {
+          return const MainDashboardScreen();
+        }
+
+        // Fallback or splash reference if user is unauthenticated
+        return const SplashScreen();
+      },
+    );
+  }
+}
+
 class MentorLinksApp extends StatelessWidget {
   const MentorLinksApp({super.key});
 
@@ -65,14 +99,15 @@ class MentorLinksApp extends StatelessWidget {
           primary: const Color(0xFF333697),
         ),
       ),
-      // AuthGate handles the initial session check
-      home: const SplashScreen(), 
+      // AuthCheckWrapper handles authentication session checks seamlessly
+      home: const AuthCheckWrapper(), 
       
       // --- ROUTES DEFINED CORRECTLY ---
       routes: {
         '/interests': (context) => const CourseSelectionScreen(), 
         '/tier-selection': (context) => const TierSelectionScreen(),
         '/mentee-dashboard': (context) => const MenteeDashboard(),
+        '/main-dashboard': (context) => const MainDashboardScreen(),
       },
     );
   }
