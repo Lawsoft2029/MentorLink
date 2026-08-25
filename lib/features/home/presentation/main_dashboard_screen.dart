@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mentorlinks_app_project/features/chat/presentation/chat_screen.dart';
+import 'package:mentorlinks_app_project/features/classroom/presentation/virtual_classroom_screen.dart';
+import 'package:mentorlinks_app_project/features/enterprise/presentation/enterprise_registration_screen.dart';
 import 'package:mentorlinks_app_project/features/mentee/presentation/mentor_matching_screen.dart';
+import 'package:mentorlinks_app_project/features/mentee/presentation/skill_roadmap_screen.dart';
 import 'package:mentorlinks_app_project/features/profile/presentation/profile_dashboard_screen.dart';
 import 'package:mentorlinks_app_project/features/review/presentation/rate_mentor_dialog.dart';
 import 'package:mentorlinks_app_project/features/scheduling/presentation/book_session_screen.dart';
@@ -24,7 +27,9 @@ class MainDashboardScreen extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ProfileDashboardScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const ProfileDashboardScreen(),
+                ),
               );
             },
           ),
@@ -41,7 +46,9 @@ class MainDashboardScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF333697).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: const Color(0xFF333697).withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: const Color(0xFF333697).withValues(alpha: 0.2),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,7 +72,11 @@ class MainDashboardScreen extends StatelessWidget {
             const SizedBox(height: 24),
             const Text(
               "Quick Actions",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333697)),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF333697),
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -85,7 +96,9 @@ class MainDashboardScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const MentorMatchingScreen(menteeSkillInterest: "Flutter"),
+                          builder: (context) => const MentorMatchingScreen(
+                            menteeSkillInterest: "Flutter",
+                          ),
                         ),
                       );
                     },
@@ -138,6 +151,57 @@ class MainDashboardScreen extends StatelessWidget {
                         builder: (context) => const RateMentorDialog(
                           mentorId: "sample_mentor_id",
                           mentorName: "Expert Mentor",
+                        ),
+                      );
+                    },
+                  ),
+
+                  // Add these cards inside your GridView.count in MainDashboardScreen:
+
+                  // 1. Skill Roadmap Card
+                  _DashboardCard(
+                    icon: Icons.map,
+                    title: "My Roadmap",
+                    color: Colors.blueAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SkillRoadmapScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // 2. Virtual Classroom Card
+                  _DashboardCard(
+                    icon: Icons.video_call,
+                    title: "Live Class",
+                    color: Colors.deepPurple,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const VirtualClassroomScreen(
+                            roomName: "Flutter Mastery Room",
+                            participantName: "Expert Mentor",
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // 3. Enterprise Onboarding & Verification Card
+                  _DashboardCard(
+                    icon: Icons.business,
+                    title: "Enterprise B2B",
+                    color: Colors.teal.shade700,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const EnterpriseRegistrationScreen(),
                         ),
                       );
                     },
