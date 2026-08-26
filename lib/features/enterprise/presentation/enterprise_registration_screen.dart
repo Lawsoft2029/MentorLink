@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+
 class EnterpriseRegistrationScreen extends StatefulWidget {
   const EnterpriseRegistrationScreen({super.key});
 
@@ -25,6 +26,14 @@ class _EnterpriseRegistrationScreenState extends State<EnterpriseRegistrationScr
     setState(() => _isLoading = true);
 
     try {
+      // Simulate Mock KYB / Business Validation Check
+      await Future.delayed(const Duration(seconds: 2));
+      
+      final String regNo = _regNumberController.text.trim();
+      if (regNo.length < 5) {
+        throw Exception("Invalid registration number. Must be at least 5 characters.");
+      }
+
       final String userId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown_user';
 
       // Send data to Firestore collection watched by your separate Admin Portal
@@ -32,7 +41,7 @@ class _EnterpriseRegistrationScreenState extends State<EnterpriseRegistrationScr
         'userId': userId,
         'companyName': _companyNameController.text.trim(),
         'jurisdiction': _selectedJurisdiction,
-        'regNumber': _regNumberController.text.trim(),
+        'regNumber': regNo,
         'corporateEmail': _corporateEmailController.text.trim(),
         'seatCount': _seatCountController.text.trim(),
         'status': 'PendingVerification', // Triggers view in your admin portal
@@ -41,19 +50,34 @@ class _EnterpriseRegistrationScreenState extends State<EnterpriseRegistrationScr
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Enterprise registration submitted successfully! Awaiting admin review.")),
+          const SnackBar(
+            content: Text("Business verified and enterprise registration submitted successfully!"),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Submission failed: $e")),
+          SnackBar(
+            content: Text("Verification/Submission failed: ${e.toString().replaceAll('Exception: ', '')}"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _companyNameController.dispose();
+    _regNumberController.dispose();
+    _corporateEmailController.dispose();
+    _seatCountController.dispose();
+    super.dispose();
   }
 
   @override

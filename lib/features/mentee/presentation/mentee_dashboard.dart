@@ -109,9 +109,9 @@ class HomeScreenContent extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: uid != null
             ? FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .snapshots()
+                  .collection('users')
+                  .doc(uid)
+                  .snapshots()
             : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -128,7 +128,9 @@ class HomeScreenContent extends StatelessWidget {
             userTier = data['userTier'] ?? 'Freemium';
 
             if (data['totalMinutesLearned'] != null) {
-              int mins = data['totalMinutesLearned'];
+              // Safely handle whether Firestore returns an int or double
+              int mins = (data['totalMinutesLearned'] as num).toInt();
+
               learningHours = mins >= 60
                   ? "${(mins / 60).toStringAsFixed(1)} hrs"
                   : "$mins mins";
@@ -144,11 +146,16 @@ class HomeScreenContent extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const MenteeSubscriptionScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const MenteeSubscriptionScreen(),
+                      ),
                     );
                   },
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
@@ -168,17 +175,28 @@ class HomeScreenContent extends StatelessWidget {
                             children: [
                               Text(
                                 "Upgrade to MentorLinks Pro",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
                               ),
                               SizedBox(height: 2),
                               Text(
                                 "Enjoy ad-free learning & priority matching.",
-                                style: TextStyle(color: Colors.white70, fontSize: 12),
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 14),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white70,
+                          size: 14,
+                        ),
                       ],
                     ),
                   ),
@@ -280,10 +298,7 @@ class HomeScreenContent extends StatelessWidget {
                             "Flutter • Dart • Firebase\nRate: \$0.10/min",
                           ),
                           const SizedBox(height: 4),
-                          StarRatingWidget(
-                            rating: 4.8,
-                            reviewCount: 128,
-                          ),
+                          StarRatingWidget(rating: 4.8, reviewCount: 128),
                         ],
                       ),
                       isThreeLine: true,

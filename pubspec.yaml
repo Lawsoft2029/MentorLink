@@ -25,6 +25,7 @@ dependencies:
   firebase_messaging: 15.2.10
   flutterwave_standard: ^1.0.8
   flutter_dotenv: ^5.2.1
+  google_mobile_ads: ^5.2.0
 
 
   flutter_highlight: ^0.7.0

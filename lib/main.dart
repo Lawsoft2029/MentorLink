@@ -6,12 +6,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart'; // IMPORT DOTENV
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:mentorlinks_app_project/features/kyc/presentation/kyc_screen.dart'; 
 import 'features/auth/presentation/splash_screen.dart'; 
 import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
 import 'package:mentorlinks_app_project/features/auth/presentation/tier_selection_screen.dart';
 import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dashboard.dart';
 import 'package:mentorlinks_app_project/features/home/presentation/main_dashboard_screen.dart'; // ADDED MAIN DASHBOARD IMPORT
+import 'package:google_mobile_ads/google_mobile_ads.dart'; // Add import
 
 // --- BACKGROUND MESSAGING HANDLER ---
 @pragma('vm:entry-point')
@@ -24,15 +26,22 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+// Initialize Mobile Ads SDK on mobile platforms
+  if (!kIsWeb) {
+    MobileAds.instance.initialize();
+  }
+  
   // LOAD SECURE ENVIRONMENT VARIABLES FROM .env
   await dotenv.load(fileName: ".env");
 
-  // ENABLE OFFLINE CACHING / PERSISTENCE
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-  );
-
+// ONLY ENABLE OFFLINE CACHING ON MOBILE (Web does not support SQLite persistence this way)
+  if (!kIsWeb) {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  }
+  
   GoogleFonts.config.allowRuntimeFetching = true;
   
   if (kIsWeb) {
@@ -108,6 +117,7 @@ class MentorLinksApp extends StatelessWidget {
         '/tier-selection': (context) => const TierSelectionScreen(),
         '/mentee-dashboard': (context) => const MenteeDashboard(),
         '/main-dashboard': (context) => const MainDashboardScreen(),
+        '/kyb': (context) => const KybScreen(), // ADDED KYB ROUTE
       },
     );
   }
