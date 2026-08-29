@@ -54,7 +54,7 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
           _nameController.text.trim(),
         );
 
-        // --- INITIALIZE FIRESTORE SCHEMA WITH MULTI-COURSE ENROLLMENT SUPPORT ---
+        // --- INITIALIZE FIRESTORE SCHEMA WITH WALLET MINUTES FOR ADS ---
         final uid = userCredential.user?.uid;
         if (uid != null) {
           await FirebaseFirestore.instance.collection('users').doc(uid).set({
@@ -64,12 +64,12 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
             'role': 'mentee',
             'userTier': 'Freemium',
             'isPremium': false,
-            'sessionCreditsHours': 0.0, // Hours unlocked via ads
+            'walletMinutes': 0.0, // Tracks ad-earned minutes for per-minute class sessions
             'walletBalanceUSD': 0.0,
             'mentorEarningsUSD': 0.0,
             'connectionRatePerMin': 0.10,
-            'enrolledCourses': [], // List of selected dynamic course IDs
-            'courseTimelines': {}, // Map of courseId -> months duration
+            'enrolledCourses': [], 
+            'courseTimelines': {}, 
             'createdAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }

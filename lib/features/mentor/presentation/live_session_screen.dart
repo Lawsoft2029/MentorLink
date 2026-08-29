@@ -1,6 +1,9 @@
+// ignore_for_file: prefer_final_fields, curly_braces_in_flow_control_structures
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -72,7 +75,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       _engine = createAgoraRtcEngine();
       await _engine.initialize(
         const RtcEngineContext(
-          appId: "YOUR_AGORA_APP_ID", // Replace with your Agora App ID
+          appId: "YOUR_AGORA_APP_ID", 
           channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
         ),
       );
@@ -101,7 +104,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       await _engine.enableVideo();
       await _engine.startPreview();
       await _engine.joinChannel(
-        token: "YOUR_TOKEN", // Replace with your token or temp token
+        token: "YOUR_TOKEN", 
         channelId: widget.sessionId, 
         uid: 0,
         options: const ChannelMediaOptions(
@@ -143,12 +146,50 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
   }
 
+  // --- STEP 3: LIVE PER-SECOND WALLET DEDUCTION & STOPWATCH ---
   void _startSessionStopwatch() {
-    _sessionClockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isPaused && mounted) {
-        setState(() {
-          _secondsElapsed++;
-        });
+    _sessionClockTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_isPaused || !mounted) return;
+
+      setState(() {
+        _secondsElapsed++;
+      });
+
+      // If the current user is a mentee, deduct ad-earned minutes from their Firestore wallet in real-time
+      if (widget.role == 'mentee') {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          final userDocRef = FirebaseFirestore.instance.collection('users').doc(uid);
+          try {
+            final snapshot = await userDocRef.get();
+            if (snapshot.exists) {
+              double walletMinutes = (snapshot.data()?['walletMinutes'] ?? 0.0).toDouble();
+
+              // Auto-terminate session if wallet hits zero
+              if (walletMinutes <= 0.0) {
+                _sessionClockTimer?.cancel();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Colors.redAccent,
+                      content: Text("Session closed: Your study wallet is empty! Watch more ads."),
+                    ),
+                  );
+                }
+                _endLiveSessionChannel();
+                return;
+              }
+
+              // Decrement fraction of a minute per second (-1/60th of a minute)
+              await userDocRef.update({
+                'walletMinutes': FieldValue.increment(-1 / 60),
+                'totalMinutesLearned': FieldValue.increment(1 / 60),
+              });
+            }
+          } catch (e) {
+            debugPrint("Failed to update mentee wallet balance: $e");
+          }
+        }
       }
     });
   }
@@ -216,6 +257,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     return "$minutes:$seconds";
   }
 
+  // --- STEP 3: EXACT SETTLEMENT & TUTOR PAYOUT ON EXIT ---
   Future<void> _endLiveSessionChannel() async {
     if (_isEnding) return;
     setState(() => _isEnding = true);
@@ -232,38 +274,45 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       final snapshot = await sessionRef.get();
       final data = snapshot.data() ?? {};
       
-      // Standard platform rate of $0.10 per minute
-      const double ratePerMin = 0.10;
+      const double ratePerMin = 0.10; // $0.10 per minute rate
 
-      int totalMinutes = (_secondsElapsed / 60).ceil();
-      if (totalMinutes < 1 && _secondsElapsed > 0) {
-        totalMinutes = 1;
+      double exactMinutes = _secondsElapsed / 60.0;
+      if (exactMinutes < (1/60) && _secondsElapsed > 0) {
+        exactMinutes = 1/60;
       }
 
-      final double totalCostUSD = totalMinutes * ratePerMin;
+      final double totalCostUSD = exactMinutes * ratePerMin;
+      final studentUid = data['studentId'] ?? FirebaseAuth.instance.currentUser?.uid;
+      final mentorUid = data['mentorId'];
 
-      // Atomic batch write for session completion & mentor earnings credit
+      // Atomic batch write for session completion, mentor credit, and student balance settlement
       final batch = FirebaseFirestore.instance.batch();
 
       batch.update(sessionRef, {
         'status': 'completed',
-        'totalMinutesTaught': totalMinutes,
+        'durationSeconds': _secondsElapsed,
+        'totalMinutesTaught': exactMinutes,
         'finalCostUSD': totalCostUSD,
         'endedAt': FieldValue.serverTimestamp(),
       });
 
-      if (widget.role == 'mentor') {
-        final mentorUid = data['mentorId'];
-        if (mentorUid != null) {
-          final mentorRef = FirebaseFirestore.instance.collection('users').doc(mentorUid);
-          batch.update(mentorRef, {
-            'mentorEarningsUSD': FieldValue.increment(totalCostUSD),
-            'isOnline': false, 
-          });
-          
-          // Clean up availability node if present
-          batch.delete(FirebaseFirestore.instance.collection('available_mentors').doc(mentorUid));
-        }
+      // 1. Credit Mentor Earnings
+      if (mentorUid != null) {
+        final mentorRef = FirebaseFirestore.instance.collection('users').doc(mentorUid);
+        batch.update(mentorRef, {
+          'mentorEarningsUSD': FieldValue.increment(totalCostUSD),
+          'isOnline': false, 
+        });
+        
+        batch.delete(FirebaseFirestore.instance.collection('available_mentors').doc(mentorUid));
+      }
+
+      // 2. Deduct exact minutes from student wallet if session was mentee-driven
+      if (studentUid != null && widget.role == 'mentee') {
+        final studentRef = FirebaseFirestore.instance.collection('users').doc(studentUid);
+        batch.update(studentRef, {
+          'walletMinutes': FieldValue.increment(-exactMinutes),
+        });
       }
 
       await batch.commit();
@@ -296,7 +345,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           children: [
             Text("Duration: ${_formatDigitalClock(sessionData['durationSeconds'] ?? _secondsElapsed)}"),
             const SizedBox(height: 8),
-            Text("Total Earnings Credited: \$${(sessionData['finalCostUSD'] ?? 0.00).toStringAsFixed(2)}"),
+            Text("Total Cost/Earnings: \$${(sessionData['finalCostUSD'] ?? 0.00).toStringAsFixed(2)}"),
             const SizedBox(height: 12),
             const Text(
               "Session balance metrics synchronized successfully across account profiles.",

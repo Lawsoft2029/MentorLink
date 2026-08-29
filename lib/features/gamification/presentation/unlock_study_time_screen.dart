@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 // Only import google_mobile_ads conditionally or standardly if targeting mobile
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -13,6 +15,7 @@ class UnlockStudyTimeScreen extends StatefulWidget {
 class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
   RewardedAd? _rewardedAd;
   bool _isAdLoaded = false;
+  bool _isCrediting = false;
 
   // Google's official test ad unit ID for development
   final String _adUnitId = 'ca-app-pub-3940256099942544/5224354917'; 
@@ -49,7 +52,7 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
   void _showRewardedAd() {
     // 🌐 WEB FALLBACK: Since AdMob isn't supported on web, simulate a verification timer or test pass for web users
     if (kIsWeb) {
-      _grantRewardAndExit("Web Simulation: Ad completed successfully! +1 Hour unlocked.");
+      _grantWalletMinutesAndExit(10, "Web Simulation: Ad completed! +10 minutes added to wallet.");
       return;
     }
 
@@ -75,7 +78,8 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
     // 📱 MOBILE REAL AD: User only gets rewarded if Google confirms they watched it!
     _rewardedAd!.show(
       onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-        _grantRewardAndExit("Ad completed successfully! +1 Hour unlocked.");
+        // Boss Rule: 1 completed ad adds precise study minutes to the wallet
+        _grantWalletMinutesAndExit(10, "Ad completed successfully! +10 minutes added to wallet.");
       },
     );
 
@@ -83,17 +87,47 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
     _isAdLoaded = false;
   }
 
-  void _grantRewardAndExit(String message) {
-    if (!mounted) return;
+  // --- FIRESTORE WALLET TRANSACTION ENGINE ---
+  Future<void> _grantWalletMinutesAndExit(double minutesToAdd, String message) async {
+    if (_isCrediting) return;
+    setState(() => _isCrediting = true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      ),
-    );
-    // Return the earned duration so the calling screen can persist the unlock.
-    Navigator.pop(context, const Duration(hours: 1));
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final snapshot = await transaction.get(userRef);
+          double currentMinutes = 0.0;
+          if (snapshot.exists && snapshot.data() != null) {
+            currentMinutes = (snapshot.data()!['walletMinutes'] ?? 0.0).toDouble();
+          }
+
+          transaction.set(userRef, {
+            'walletMinutes': currentMinutes + minutesToAdd,
+            'lastAdWatchedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        });
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to credit wallet: $e"), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isCrediting = false);
+    }
   }
 
   @override
@@ -106,9 +140,7 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // On web, we immediately allow clicking since it falls back to a simulated reward flow.
-    // On mobile, it requires the ad to load first.
-    bool canPress = kIsWeb || _isAdLoaded;
+    bool canPress = (kIsWeb || _isAdLoaded) && !_isCrediting;
 
     return Scaffold(
       appBar: AppBar(
@@ -125,12 +157,12 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
               const Icon(Icons.video_collection_rounded, size: 80, color: Color(0xFF333697)),
               const SizedBox(height: 24),
               const Text(
-                'Watch an Ad to Earn a 1-Hour Pass',
+                'Watch Ads to Build Your Study Wallet',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               const Text(
-                'Support free technical education. Watch a short rewarded video ad to instantly credit 1 hour of classroom time.',
+                'Support free technical education. Watch rewarded video ads to pile up minutes in your wallet for live tutor sessions.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey),
               ),
@@ -143,10 +175,12 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
                     backgroundColor: const Color(0xFF333697),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Text(
-                    kIsWeb ? 'Watch Ad & Unlock 1 Hour' : (_isAdLoaded ? 'Watch Ad & Unlock 1 Hour' : 'Loading Ad...'),
-                    style: const TextStyle(fontSize: 16, color: Colors.white),
-                  ),
+                  child: _isCrediting
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          kIsWeb ? 'Watch Ad & Earn 10 Mins' : (_isAdLoaded ? 'Watch Ad & Earn 10 Mins' : 'Loading Ad...'),
+                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                        ),
                 ),
               ),
             ],

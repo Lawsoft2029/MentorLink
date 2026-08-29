@@ -5,8 +5,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:code_text_field/code_text_field.dart';
 import 'package:highlight/languages/dart.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
@@ -18,8 +16,8 @@ import 'package:mentorlinks_app_project/features/chat/presentation/mentor_review
 
 class LiveSessionScreen extends StatefulWidget {
   final String sessionId;
-  final String role;
-  final double ratePerSecond = 0.10 / 60;
+  final String role; // 'mentee' or 'mentor'
+  final double ratePerMinute = 0.10; // $0.10 gross rate per minute
 
   const LiveSessionScreen({
     super.key,
@@ -38,10 +36,22 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   Timer? _timer;
   bool _isPaused = false; 
 
+  // --- WORKSPACE VIEW MODES ---
+  bool _isCodeView = false;
+  bool _isNotesView = false; // Toggle for Notepad
+
+  // --- NOTEPAD STATE VARIABLES ---
+  final TextEditingController _notesController = TextEditingController();
+  Timer? _notesDebounceTimer;
+  bool _isSyncedToCloud = true;
+  String _userTier = 'Freemium';
+
+  // --- RECORDING STATE VARIABLES ---
+  bool _isRecording = true;
+  String? _localRecordingPath;
+
   // --- AGORA VIDEO VARIABLES ---
   late RtcEngine _engine;
-  bool _isCodeView = false;
-  bool _isScreenSharing = false;
   bool _isReady = false;
   int? _remoteUid;
   bool _muted = false;
@@ -64,8 +74,108 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       text: _sessionFiles[_activeFile],
       language: dart,
     );
+    _fetchUserTierAndNotes();
     _initAgora();
     _startSession();
+    _notesController.addListener(_onNoteTextChanged);
+  }
+
+  // --- FETCH USER TIER & INITIALIZE NOTES ---
+  Future<void> _fetchUserTierAndNotes() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (userDoc.exists && mounted) {
+        setState(() {
+          _userTier = userDoc.data()?['userTier'] ?? 'Freemium';
+        });
+      }
+
+      // Load local offline notes backup
+      if (!kIsWeb) {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/MentorLinks/Notes/${widget.sessionId}_$uid.txt');
+        if (await file.exists()) {
+          final localContent = await file.readAsString();
+          if (_notesController.text.isEmpty) {
+            _notesController.text = localContent;
+          }
+        }
+      }
+
+      // Load cloud notes backup
+      final cloudDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('session_notes')
+          .doc(widget.sessionId)
+          .get();
+
+      if (cloudDoc.exists && mounted) {
+        final cloudText = cloudDoc.data()?['noteContent'] ?? '';
+        if (cloudText.isNotEmpty && cloudText != _notesController.text) {
+          _notesController.text = cloudText;
+        }
+      }
+    } catch (e) {
+      debugPrint("Error loading tier or notes: $e");
+    }
+  }
+
+  // --- NOTEPAD SYNC LOGIC ---
+  void _onNoteTextChanged() {
+    setState(() => _isSyncedToCloud = false);
+    _saveNotesLocally(_notesController.text);
+
+    if (_notesDebounceTimer?.isActive ?? false) _notesDebounceTimer!.cancel();
+    _notesDebounceTimer = Timer(const Duration(milliseconds: 1000), () {
+      _syncNotesToCloud(_notesController.text);
+    });
+  }
+
+  Future<void> _saveNotesLocally(String content) async {
+    if (kIsWeb) return;
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final directory = await getApplicationDocumentsDirectory();
+      final notesDir = Directory('${directory.path}/MentorLinks/Notes');
+      if (!await notesDir.exists()) {
+        await notesDir.create(recursive: true);
+      }
+
+      final file = File('${notesDir.path}/${widget.sessionId}_$uid.txt');
+      await file.writeAsString(content);
+    } catch (e) {
+      debugPrint("Local notes save error: $e");
+    }
+  }
+
+  Future<void> _syncNotesToCloud(String content) async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('session_notes')
+          .doc(widget.sessionId)
+          .set({
+        'sessionId': widget.sessionId,
+        'noteContent': content,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        setState(() => _isSyncedToCloud = true);
+      }
+    } catch (e) {
+      debugPrint("Cloud sync pending (offline): $e");
+    }
   }
 
   // --- PERSISTENCE LOGIC ---
@@ -252,43 +362,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     );
   }
 
-  // --- AUTOMATED PROJECT LOGIC ---
-  Future<void> _handleExternalProject() async {
-    String projectLink = "https://github.com/MentorLinks/session_share_active";
-
-    setState(() {
-      _messages.add({
-        "user": "System",
-        "text": "Live Share Requested. Access Code: $projectLink",
-      });
-    });
-
-    if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Link shared to Mentor. Open VS Code to start collaborating.",
-          ),
-          backgroundColor: Color(0xFF333697),
-        ),
-      );
-      return;
-    }
-
-    try {
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-      if (selectedDirectory != null) {
-        if (!_isScreenSharing) await _toggleScreenSharing();
-        final Uri vscodeUri = Uri.parse('vscode://file/$selectedDirectory');
-        if (await canLaunchUrl(vscodeUri)) {
-          await launchUrl(vscodeUri, mode: LaunchMode.externalApplication);
-        }
-      }
-    } catch (e) {
-      debugPrint("External project error: $e");
-    }
-  }
-
   Future<void> _initAgora() async {
     if (kIsWeb) {
       if (mounted) setState(() => _isReady = true);
@@ -354,51 +427,35 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     }
   }
 
-  Future<void> _toggleScreenSharing() async {
-    if (kIsWeb) return;
-
-    if (!_isScreenSharing) {
-      await _engine.startScreenCapture(
-        const ScreenCaptureParameters2(captureAudio: true, captureVideo: true),
-      );
-      setState(() {
-        _isScreenSharing = true;
-        _isCodeView = true;
-      });
-    } else {
-      await _engine.stopScreenCapture();
-      setState(() {
-        _isScreenSharing = false;
-        _isCodeView = false;
-      });
-    }
-  }
-
+  // --- LIVE PER-MINUTE WALLET / PACKAGE DEDUCTION TIMER ---
   void _startSession() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (_isPaused) return; 
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
 
-      if (uid != null) {
+      if (widget.role == 'mentee') {
         final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
 
         try {
           final docSnapshot = await userDoc.get();
           if (docSnapshot.exists) {
             final data = docSnapshot.data() as Map<String, dynamic>;
-            double currentBalance = (data['walletBalanceUSD'] ?? 0.0)
-                .toDouble();
-            String tier = data['userTier'] ?? 'Freemium';
+            String userTier = data['userTier'] ?? 'Freemium';
+            
+            double availableMinutes = userTier == 'Premium' || userTier == 'Enterprise'
+                ? (data['monthlyPackageMinutes'] ?? 0.0).toDouble() 
+                : (data['walletMinutes'] ?? 0.0).toDouble();
 
-            if (tier == 'Freemium' && currentBalance <= 0.0) {
+            if (availableMinutes <= 0.0) {
               _timer?.cancel();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     backgroundColor: Colors.redAccent,
                     content: Text(
-                      "Session closed automatically: Insufficient Balance!",
+                      "Session closed: Your balance is empty! Upgrade or watch ads to continue.",
                     ),
                   ),
                 );
@@ -410,24 +467,27 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             if (mounted) {
               setState(() {
                 _seconds++;
-                _totalCost += widget.ratePerSecond;
+                _totalCost += (widget.ratePerMinute / 60); 
               });
             }
 
-            if (tier == 'Freemium') {
+            if (userTier == 'Premium' || userTier == 'Enterprise') {
               await userDoc.update({
-                'walletBalanceUSD': FieldValue.increment(-widget.ratePerSecond),
+                'monthlyPackageMinutes': FieldValue.increment(-1 / 60),
                 'totalMinutesLearned': FieldValue.increment(1 / 60),
               });
             } else {
               await userDoc.update({
+                'walletMinutes': FieldValue.increment(-1 / 60),
                 'totalMinutesLearned': FieldValue.increment(1 / 60),
               });
             }
           }
         } catch (e) {
-          debugPrint("Operational background sync failed: $e");
+          debugPrint("Wallet deduction sync failed: $e");
         }
+      } else {
+        if (mounted) setState(() => _seconds++);
       }
     });
   }
@@ -437,6 +497,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     _timer?.cancel();
     _codeController.dispose();
     _chatController.dispose();
+    _notesController.dispose();
+    _notesDebounceTimer?.cancel();
     if (!kIsWeb) {
       _engine.leaveChannel();
       _engine.release();
@@ -444,6 +506,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     super.dispose();
   }
 
+  // --- REVENUE SPLIT & TUTOR PAYOUT SETTLEMENT ON EXIT ---
   void _verifyDebugSuccess() {
     showDialog(
       context: context,
@@ -451,7 +514,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         backgroundColor: const Color(0xFF1A1A2E),
         title: const Text("Confirm Exit", style: TextStyle(color: Colors.white)),
         content: const Text(
-          "Save progress and end session?",
+          "Do you want to end this class session? The mentor will be paid and startup revenue recorded.",
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -461,37 +524,108 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           ),
           TextButton(
             onPressed: () async {
+              _timer?.cancel();
               await _saveFilesLocally();
-              if (!mounted) return;
-              Navigator.pop(context); // Close confirmation dialog
 
-              setState(() {
-                _timer?.cancel();
-                _seconds = 0;
-              });
+              double exactMinutesSpent = _seconds / 60.0;
+              if (exactMinutesSpent < (1/60) && _seconds > 0) exactMinutesSpent = 1/60;
 
-              // Fetch session document to grab mentorUid for review prompt
-              final sessionDoc = await FirebaseFirestore.instance
-                  .collection('sessions')
-                  .doc(widget.sessionId)
-                  .get();
-              
-              final sessionData = sessionDoc.data() ?? {};
-              final mentorUid = sessionData['mentorId'];
+              const double mentorShareRate = 0.80; 
+              const double platformShareRate = 0.20; 
 
-              if (!mounted) return;
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              double totalGrossCost = exactMinutesSpent * widget.ratePerMinute;
+              double mentorEarnings = totalGrossCost * mentorShareRate;
+              double platformRevenue = totalGrossCost * platformShareRate;
 
-              // --- TRIGGER REVIEW & RATING POPUP AFTER EXITING ---
-              if (mentorUid != null) {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => MentorReviewDialog(
-                    mentorUid: mentorUid,
-                    sessionId: widget.sessionId,
-                  ),
-                );
+              try {
+                final sessionDoc = await FirebaseFirestore.instance
+                    .collection('sessions')
+                    .doc(widget.sessionId)
+                    .get();
+
+                final sessionData = sessionDoc.data() ?? {};
+                final mentorUid = sessionData['mentorId'] ?? sessionData['mentorUid'];
+                final studentUid = sessionData['studentId'] ?? FirebaseAuth.instance.currentUser?.uid;
+
+                final batch = FirebaseFirestore.instance.batch();
+
+                final sessionRef = FirebaseFirestore.instance.collection('sessions').doc(widget.sessionId);
+                batch.set(sessionRef, {
+                  'minutesSpent': exactMinutesSpent,
+                  'finalCostUSD': totalGrossCost,
+                  'mentorEarningsUSD': mentorEarnings,
+                  'platformRevenueUSD': platformRevenue,
+                  'endedAt': FieldValue.serverTimestamp(),
+                  'status': 'Completed',
+                }, SetOptions(merge: true));
+
+                if (mentorUid != null) {
+                  final mentorRef = FirebaseFirestore.instance.collection('users').doc(mentorUid);
+                  batch.update(mentorRef, {
+                    'mentorEarningsUSD': FieldValue.increment(mentorEarnings),
+                  });
+                }
+
+                final revenueRef = FirebaseFirestore.instance.collection('platform_revenue').doc();
+                batch.set(revenueRef, {
+                  'sessionId': widget.sessionId,
+                  'amountEarned': platformRevenue,
+                  'timestamp': FieldValue.serverTimestamp(),
+                });
+
+                if (studentUid != null && widget.role == 'mentee') {
+                  final studentRef = FirebaseFirestore.instance.collection('users').doc(studentUid);
+                  final studentSnap = await studentRef.get();
+                  if (studentSnap.exists) {
+                    String userTier = studentSnap.data()?['userTier'] ?? 'Freemium';
+                    if (userTier == 'Premium' || userTier == 'Enterprise') {
+                      batch.update(studentRef, {
+                        'monthlyPackageMinutes': FieldValue.increment(-exactMinutesSpent),
+                      });
+                    } else {
+                      batch.update(studentRef, {
+                        'walletMinutes': FieldValue.increment(-exactMinutesSpent),
+                      });
+                    }
+                  }
+                }
+
+                // Log Recording Vault Entry for Premium/Enterprise/Mentor
+                if (studentUid != null && (widget.role == 'mentor' || _userTier == 'Premium' || _userTier == 'Enterprise')) {
+                  final recordingRef = FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(widget.role == 'mentor' ? mentorUid : studentUid)
+                      .collection('session_recordings')
+                      .doc(widget.sessionId);
+
+                  batch.set(recordingRef, {
+                    'sessionId': widget.sessionId,
+                    'durationMinutes': exactMinutesSpent,
+                    'recordedAt': FieldValue.serverTimestamp(),
+                    'status': 'Saved',
+                    'storagePath': _localRecordingPath ?? '/MentorLinks/Recordings/${widget.sessionId}.mp4',
+                  }, SetOptions(merge: true));
+                }
+
+                await batch.commit();
+
+                if (!mounted) return;
+                Navigator.pop(context); 
+                Navigator.of(context).popUntil((route) => route.isFirst);
+
+                if (mentorUid != null && widget.role == 'mentee') {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => MentorReviewDialog(
+                      mentorUid: mentorUid,
+                      sessionId: widget.sessionId,
+                    ),
+                  );
+                }
+              } catch (e) {
+                debugPrint("Error settling session payment: $e");
+                if (mounted) Navigator.pop(context);
               }
             },
             child: const Text("Yes", style: TextStyle(color: Colors.greenAccent)),
@@ -514,7 +648,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             _buildTopBar(),
             const SizedBox(height: 10),
 
-            if (_isCodeView)
+            // Dynamic Center Workspace Switcher
+            if (_isNotesView)
+              Expanded(child: _buildNotepadEditor())
+            else if (_isCodeView)
               Expanded(child: _buildCodeEditor())
             else
               Container(
@@ -538,7 +675,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                               ),
                             )
                           : const Text(
-                              'Waiting for mentor to join...',
+                              'Waiting for participant to join...',
                               style: TextStyle(
                                 color: Colors.white54,
                                 fontSize: 13,
@@ -584,6 +721,107 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  // --- CLOUD & OFFLINE NOTEPAD WIDGET ---
+  Widget _buildNotepadEditor() {
+    bool isAllowed = widget.role == 'mentor' || 
+                     _userTier == 'Premium' || 
+                     _userTier == 'Enterprise';
+
+    if (!isAllowed) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock_rounded, size: 44, color: Colors.amber),
+            const SizedBox(height: 12),
+            const Text(
+              "Notepad Locked to Premium / Enterprise",
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              "Upgrade your subscription to unlock cloud/offline session notetaking.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.edit_note, color: Colors.blueAccent, size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      "Session Cloud & Offline Notepad",
+                      style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Icon(
+                      _isSyncedToCloud ? Icons.cloud_done : Icons.cloud_upload_outlined,
+                      color: _isSyncedToCloud ? Colors.greenAccent : Colors.orangeAccent,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isSyncedToCloud ? "Synced" : "Saving...",
+                      style: TextStyle(
+                        color: _isSyncedToCloud ? Colors.greenAccent : Colors.orangeAccent,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: TextField(
+                controller: _notesController,
+                maxLines: null,
+                style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+                decoration: const InputDecoration(
+                  hintText: "Type key class notes, algorithms, or debugging steps here... (Saves offline automatically)",
+                  hintStyle: TextStyle(color: Colors.white30, fontSize: 12),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -659,7 +897,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
               const Text(
-                "Mentee Session",
+                "Live Session",
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ],
@@ -770,29 +1008,41 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           _isPaused ? Icons.play_arrow : Icons.pause,
           _isPaused ? Colors.green : Colors.orange,
           onTap: () {
+            final recordingNow = !_isPaused;
             setState(() {
               _isPaused = !_isPaused;
+              _isRecording = recordingNow; // Syncs recording pause state with session pause
             });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  _isPaused ? "Class paused. Billing halted." : "Class resumed.",
+                  _isRecording
+                      ? "Class & Recording resumed."
+                      : "Class & Recording paused. Billing halted.",
                 ),
                 duration: const Duration(seconds: 1),
               ),
             );
           },
         ),
+        // --- Notepad Toggle Button ---
         _callAction(
-          Icons.laptop_windows,
-          const Color(0xFF333697),
-          onTap: _handleExternalProject,
+          Icons.edit_note,
+          _isNotesView ? Colors.blue : Colors.white24,
+          onTap: () => setState(() {
+            _isNotesView = !_isNotesView;
+            if (_isNotesView) _isCodeView = false;
+          }),
         ),
         _callAction(Icons.chat, Colors.blueAccent, onTap: _showChatSheet),
+        // --- Code Editor Toggle Button ---
         _callAction(
           _isCodeView ? Icons.videocam : Icons.code,
           _isCodeView ? Colors.orange : Colors.white24,
-          onTap: () => setState(() => _isCodeView = !_isCodeView),
+          onTap: () => setState(() {
+            _isCodeView = !_isCodeView;
+            if (_isCodeView) _isNotesView = false;
+          }),
         ),
         _callAction(
           Icons.call_end,
@@ -802,7 +1052,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       ],
     );
   }
-  
+
   Widget _callAction(IconData icon, Color color, {VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,

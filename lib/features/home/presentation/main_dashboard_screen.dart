@@ -185,6 +185,8 @@ class MainDashboardScreen extends StatelessWidget {
                           builder: (context) => const VirtualClassroomScreen(
                             roomName: "Flutter Mastery Room",
                             participantName: "Expert Mentor",
+                            sessionId: "demo_session_001",
+                            role: "mentee",
                           ),
                         ),
                       );
