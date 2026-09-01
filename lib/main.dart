@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:mentorlinks_app_project/features/auth/services/notification_service.dart';
 import 'package:mentorlinks_app_project/features/kyc/presentation/kyc_screen.dart'; 
 import 'features/auth/presentation/splash_screen.dart'; 
 import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
@@ -46,12 +45,6 @@ void main() async {
 
   // Register background handler statically via FirebaseMessaging class
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  try {
-    await NotificationService.initialize(); // Corrected static call
-  } catch (e) {
-    debugPrint('NotificationService initialization error: $e');
-  }
 
   // Initialize Mobile Ads SDK on mobile platforms
   if (!kIsWeb) {
