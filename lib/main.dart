@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:mentorlinks_app_project/features/auth/services/notification_service.dart';
 import 'package:mentorlinks_app_project/features/kyc/presentation/kyc_screen.dart'; 
 import 'features/auth/presentation/splash_screen.dart'; 
 import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
@@ -25,25 +26,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-// Initialize Mobile Ads SDK on mobile platforms
-  if (!kIsWeb) {
-    MobileAds.instance.initialize();
-  }
   
-  // LOAD SECURE ENVIRONMENT VARIABLES FROM .env
-  await dotenv.load(fileName: ".env");
-
-// ONLY ENABLE OFFLINE CACHING ON MOBILE (Web does not support SQLite persistence this way)
-  if (!kIsWeb) {
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-    );
-  }
-  
-  GoogleFonts.config.allowRuntimeFetching = true;
-  
+  // Initialize Firebase safely once based on platform
   if (kIsWeb) {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
@@ -59,6 +43,33 @@ void main() async {
   } else {
     await Firebase.initializeApp();
   }
+
+  // Register background handler statically via FirebaseMessaging class
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  try {
+    await NotificationService.initialize(); // Corrected static call
+  } catch (e) {
+    debugPrint('NotificationService initialization error: $e');
+  }
+
+  // Initialize Mobile Ads SDK on mobile platforms
+  if (!kIsWeb) {
+    MobileAds.instance.initialize();
+  }
+  
+  // LOAD SECURE ENVIRONMENT VARIABLES FROM .env
+  await dotenv.load(fileName: ".env");
+
+  // ONLY ENABLE OFFLINE CACHING ON MOBILE (Web does not support SQLite persistence this way)
+  if (!kIsWeb) {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  }
+  
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   runApp(
     const ProviderScope(
