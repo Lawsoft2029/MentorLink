@@ -8,41 +8,7 @@ import 'wallet_screen.dart';
 import 'vault_screen.dart';
 import 'live_session_screen.dart';
 import 'mentee_subscription_screen.dart';
-
-class UnlockStudyTimeScreen extends StatelessWidget {
-  const UnlockStudyTimeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Unlock Study Time')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Watch an ad to unlock a 1-hour study pass.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ad unavailable. Please try again later.')),
-                  );
-                },
-                icon: const Icon(Icons.play_circle_filled),
-                label: const Text('Watch Ad'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+import 'package:mentorlinks_app_project/features/gamification/presentation/unlock_study_time_screen.dart';
 
 class MenteeDashboard extends StatefulWidget {
   const MenteeDashboard({super.key});
@@ -143,9 +109,9 @@ class HomeScreenContent extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: uid != null
             ? FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .snapshots()
+                  .collection('users')
+                  .doc(uid)
+                  .snapshots()
             : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -153,12 +119,14 @@ class HomeScreenContent extends StatelessWidget {
           }
 
           double walletBalanceUSD = 0.00;
+          double walletMinutes = 0.0;
           String userTier = 'Freemium';
           String learningHours = "12 hrs";
 
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>;
             walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+            walletMinutes = (data['walletMinutes'] ?? 0.0).toDouble();
             userTier = data['userTier'] ?? 'Freemium';
 
             if (data['totalMinutesLearned'] != null) {
@@ -236,7 +204,7 @@ class HomeScreenContent extends StatelessWidget {
                   ),
                 ),
 
-                _buildStatCards(learningHours, walletBalanceUSD),
+                _buildStatCards(learningHours, walletBalanceUSD, walletMinutes),
 
                 if (userTier == 'Freemium')
                   Padding(
@@ -338,16 +306,26 @@ class HomeScreenContent extends StatelessWidget {
                       isThreeLine: true,
                       trailing: TextButton(
                         onPressed: () async {
-                          if (walletBalanceUSD >= mentorRatePerMin) {
+                          final hasSufficientUSD =
+                              walletBalanceUSD >= mentorRatePerMin;
+                          final hasUnlockedMinutes = walletMinutes > 0.0;
+
+                          if (hasSufficientUSD || hasUnlockedMinutes) {
                             if (uid != null) {
                               final userDoc = FirebaseFirestore.instance
                                   .collection('users')
                                   .doc(uid);
-                              await userDoc.update({
-                                'walletBalanceUSD': FieldValue.increment(
-                                  -mentorRatePerMin,
-                                ),
-                              });
+                              if (hasUnlockedMinutes) {
+                                await userDoc.update({
+                                  'walletMinutes': FieldValue.increment(-1.0),
+                                });
+                              } else {
+                                await userDoc.update({
+                                  'walletBalanceUSD': FieldValue.increment(
+                                    -mentorRatePerMin,
+                                  ),
+                                });
+                              }
                             }
 
                             if (context.mounted) {
@@ -390,15 +368,25 @@ class HomeScreenContent extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCards(String learningHours, double walletBalance) {
+  Widget _buildStatCards(
+    String learningHours,
+    double walletBalance,
+    double walletMinutes,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           _statItem("Learning", learningHours, Colors.blue),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           _statItem(
-            "Wallet Balance",
+            "Study Time",
+            "${walletMinutes.toStringAsFixed(0)} mins",
+            Colors.deepPurple,
+          ),
+          const SizedBox(width: 8),
+          _statItem(
+            "Wallet",
             "\$${walletBalance.toStringAsFixed(2)}",
             Colors.green,
           ),

@@ -46,3 +46,4 @@ app.*.map.json
 /android/app/release
 
 .env
+assets/videos/Payme_web_video.mp4

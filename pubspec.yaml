@@ -43,3 +43,4 @@ flutter:
   assets:
     - .env
     - assets/images/app_logo.png
+    - assets/videos/
