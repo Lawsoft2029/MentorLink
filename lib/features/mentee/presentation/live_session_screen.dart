@@ -1,14 +1,12 @@
 // ignore_for_file: prefer_final_fields, curly_braces_in_flow_control_structures
 
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:code_text_field/code_text_field.dart';
 import 'package:highlight/languages/dart.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -93,18 +91,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         });
       }
 
-      // Load local offline notes backup
-      if (!kIsWeb) {
-        final directory = await getApplicationDocumentsDirectory();
-        final file = File('${directory.path}/MentorLinks/Notes/${widget.sessionId}_$uid.txt');
-        if (await file.exists()) {
-          final localContent = await file.readAsString();
-          if (_notesController.text.isEmpty) {
-            _notesController.text = localContent;
-          }
-        }
-      }
-
       // Load cloud notes backup
       final cloudDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -137,21 +123,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   Future<void> _saveNotesLocally(String content) async {
     if (kIsWeb) return;
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      final directory = await getApplicationDocumentsDirectory();
-      final notesDir = Directory('${directory.path}/MentorLinks/Notes');
-      if (!await notesDir.exists()) {
-        await notesDir.create(recursive: true);
-      }
-
-      final file = File('${notesDir.path}/${widget.sessionId}_$uid.txt');
-      await file.writeAsString(content);
-    } catch (e) {
-      debugPrint("Local notes save error: $e");
-    }
   }
 
   Future<void> _syncNotesToCloud(String content) async {
@@ -181,25 +152,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   // --- PERSISTENCE LOGIC ---
   Future<void> _saveFilesLocally() async {
     if (kIsWeb) return;
-
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final sessionPath = '${directory.path}/MentorLinks/Session_Backup';
-      final sessionDir = Directory(sessionPath);
-
-      if (!await sessionDir.exists()) {
-        await sessionDir.create(recursive: true);
-      }
-
-      _sessionFiles[_activeFile] = _codeController.text;
-
-      for (var entry in _sessionFiles.entries) {
-        final file = File('$sessionPath/${entry.key}');
-        await file.writeAsString(entry.value);
-      }
-    } catch (e) {
-      debugPrint("Error saving files: $e");
-    }
+    _sessionFiles[_activeFile] = _codeController.text;
   }
 
   // --- FILE MANAGEMENT ---
@@ -451,15 +404,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             if (availableMinutes <= 0.0) {
               _timer?.cancel();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    backgroundColor: Colors.redAccent,
-                    content: Text(
-                      "Session closed: Your balance is empty! Upgrade or watch ads to continue.",
-                    ),
-                  ),
-                );
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                _showTopUpOrAdModal(context);
               }
               return;
             }
@@ -470,18 +415,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 _totalCost += (widget.ratePerMinute / 60); 
               });
             }
-
-            if (userTier == 'Premium' || userTier == 'Enterprise') {
-              await userDoc.update({
-                'monthlyPackageMinutes': FieldValue.increment(-1 / 60),
-                'totalMinutesLearned': FieldValue.increment(1 / 60),
-              });
-            } else {
-              await userDoc.update({
-                'walletMinutes': FieldValue.increment(-1 / 60),
-                'totalMinutesLearned': FieldValue.increment(1 / 60),
-              });
-            }
           }
         } catch (e) {
           debugPrint("Wallet deduction sync failed: $e");
@@ -490,6 +423,81 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         if (mounted) setState(() => _seconds++);
       }
     });
+  }
+
+  // --- PITCH-READY AD & TOP-UP MODAL ---
+  void _showTopUpOrAdModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              "Study Wallet Empty! 🛑",
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              "Watch a quick ad or top-up your wallet to keep your live session going seamlessly.",
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[800], foregroundColor: Colors.white),
+              icon: const Icon(Icons.slow_motion_video),
+              label: const Text("Watch Ad & Earn +15 Minutes"),
+              onPressed: () async {
+                Navigator.pop(context);
+                final uid = FirebaseAuth.instance.currentUser?.uid;
+                if (uid != null) {
+                  try {
+                    final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
+                    final snap = await docRef.get();
+                    double currentWallet = 0.0;
+                    if (snap.exists && snap.data()!.containsKey('walletMinutes')) {
+                      currentWallet = (snap.data()!['walletMinutes'] as num).toDouble();
+                    }
+
+                    await docRef.set({
+                      'walletMinutes': currentWallet + 15.0,
+                    }, SetOptions(merge: true));
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Ads completed successfully! +15 minutes unlocked.")),
+                      );
+                      setState(() {
+                        _startSession();
+                      });
+                    }
+                  } catch (e) {
+                    debugPrint("Error updating credits: $e");
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text("Return to Dashboard", style: TextStyle(color: Colors.redAccent)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -590,7 +598,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                   }
                 }
 
-                // Log Recording Vault Entry for Premium/Enterprise/Mentor
                 if (studentUid != null && (widget.role == 'mentor' || _userTier == 'Premium' || _userTier == 'Enterprise')) {
                   final recordingRef = FirebaseFirestore.instance
                       .collection('users')
@@ -1011,7 +1018,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             final recordingNow = !_isPaused;
             setState(() {
               _isPaused = !_isPaused;
-              _isRecording = recordingNow; // Syncs recording pause state with session pause
+              _isRecording = recordingNow; 
             });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1025,7 +1032,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             );
           },
         ),
-        // --- Notepad Toggle Button ---
         _callAction(
           Icons.edit_note,
           _isNotesView ? Colors.blue : Colors.white24,
@@ -1035,7 +1041,6 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           }),
         ),
         _callAction(Icons.chat, Colors.blueAccent, onTap: _showChatSheet),
-        // --- Code Editor Toggle Button ---
         _callAction(
           _isCodeView ? Icons.videocam : Icons.code,
           _isCodeView ? Colors.orange : Colors.white24,

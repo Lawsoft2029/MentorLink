@@ -7,8 +7,42 @@ import 'package:mentorlinks_app_project/shared/widgets/star_rating_widget.dart';
 import 'wallet_screen.dart';
 import 'vault_screen.dart';
 import 'live_session_screen.dart';
-import 'ad_pass_screen.dart'; // IMPORTED THE AD PASS SCREEN
 import 'mentee_subscription_screen.dart';
+
+class UnlockStudyTimeScreen extends StatelessWidget {
+  const UnlockStudyTimeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Unlock Study Time')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Watch an ad to unlock a 1-hour study pass.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ad unavailable. Please try again later.')),
+                  );
+                },
+                icon: const Icon(Icons.play_circle_filled),
+                label: const Text('Watch Ad'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class MenteeDashboard extends StatefulWidget {
   const MenteeDashboard({super.key});
@@ -63,10 +97,10 @@ class HomeScreenContent extends StatelessWidget {
   final VoidCallback onNavigateToLive;
 
   Future<void> _watchAdAndEarn(BuildContext context) async {
-    // ROUTED TO AD PASS SCREEN TO UNLOCK STUDY PASS HOURS
+    // ROUTED TO UNLOCK STUDY TIME SCREEN TO HANDLE WEB/MOBILE AD REWARDS
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const AdPassUnlockScreen()),
+      MaterialPageRoute(builder: (context) => const UnlockStudyTimeScreen()),
     );
   }
 
@@ -109,9 +143,9 @@ class HomeScreenContent extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: uid != null
             ? FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .snapshots()
+                .collection('users')
+                .doc(uid)
+                .snapshots()
             : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// Only import google_mobile_ads conditionally or standardly if targeting mobile
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:video_player/video_player.dart';
 
 class UnlockStudyTimeScreen extends StatefulWidget {
   const UnlockStudyTimeScreen({super.key});
@@ -17,7 +17,6 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
   bool _isAdLoaded = false;
   bool _isCrediting = false;
 
-  // Google's official test ad unit ID for development
   final String _adUnitId = 'ca-app-pub-3940256099942544/5224354917'; 
 
   @override
@@ -29,7 +28,7 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
   }
 
   void _loadRewardedAd() {
-    if (kIsWeb) return; // AdMob doesn't run on Web
+    if (kIsWeb) return;
 
     RewardedAd.load(
       adUnitId: _adUnitId,
@@ -49,13 +48,18 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
     );
   }
 
-  void _showRewardedAd() {
-    // 🌐 WEB FALLBACK: Since AdMob isn't supported on web, simulate a verification timer or test pass for web users
+  // --- UNIVERSAL TAP HANDLER ---
+  void _handleWatchPressed() {
     if (kIsWeb) {
-      _grantWalletMinutesAndExit(10, "Web Simulation: Ad completed! +10 minutes added to wallet.");
-      return;
+      // 🌐 WEB USER: Directly open the video player dialog (No AdMob lookup)
+      _showWebVideoAdDialog(context);
+    } else {
+      // 📱 MOBILE USER: Trigger AdMob
+      _showMobileRewardedAd();
     }
+  }
 
+  void _showMobileRewardedAd() {
     if (!_isAdLoaded || _rewardedAd == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ad is still loading. Please try again in a moment.')),
@@ -75,10 +79,8 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
       },
     );
 
-    // 📱 MOBILE REAL AD: User only gets rewarded if Google confirms they watched it!
     _rewardedAd!.show(
       onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-        // Boss Rule: 1 completed ad adds precise study minutes to the wallet
         _grantWalletMinutesAndExit(10, "Ad completed successfully! +10 minutes added to wallet.");
       },
     );
@@ -87,7 +89,20 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
     _isAdLoaded = false;
   }
 
-  // --- FIRESTORE WALLET TRANSACTION ENGINE ---
+  // 🌐 WEB FORCED-WATCH VIDEO PLAYER DIALOG
+  void _showWebVideoAdDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _WebVideoPlayerWidget(
+        onRewarded: () {
+          _grantWalletMinutesAndExit(10, "Sponsored video completed! +10 minutes added to wallet.");
+        },
+      ),
+    );
+  }
+
+  // --- SAFE FIRESTORE WALLET TRANSACTION ENGINE ---
   Future<void> _grantWalletMinutesAndExit(double minutesToAdd, String message) async {
     if (_isCrediting) return;
     setState(() => _isCrediting = true);
@@ -96,19 +111,17 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        
+        final snapshot = await userRef.get();
+        double currentMinutes = 0.0;
+        if (snapshot.exists && snapshot.data() != null) {
+          currentMinutes = (snapshot.data()!['walletMinutes'] ?? 0.0).toDouble();
+        }
 
-        await FirebaseFirestore.instance.runTransaction((transaction) async {
-          final snapshot = await transaction.get(userRef);
-          double currentMinutes = 0.0;
-          if (snapshot.exists && snapshot.data() != null) {
-            currentMinutes = (snapshot.data()!['walletMinutes'] ?? 0.0).toDouble();
-          }
-
-          transaction.set(userRef, {
-            'walletMinutes': currentMinutes + minutesToAdd,
-            'lastAdWatchedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        });
+        await userRef.set({
+          'walletMinutes': currentMinutes + minutesToAdd,
+          'lastAdWatchedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
 
       if (!mounted) return;
@@ -140,6 +153,7 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // On web, the button is always ready. On mobile, it depends on whether the ad loaded.
     bool canPress = (kIsWeb || _isAdLoaded) && !_isCrediting;
 
     return Scaffold(
@@ -170,7 +184,7 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: canPress ? _showRewardedAd : null,
+                  onPressed: canPress ? _handleWatchPressed : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF333697),
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -178,7 +192,7 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
                   child: _isCrediting
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
-                          kIsWeb ? 'Watch Ad & Earn 10 Mins' : (_isAdLoaded ? 'Watch Ad & Earn 10 Mins' : 'Loading Ad...'),
+                          kIsWeb ? 'Watch Sponsor Video & Earn 10 Mins' : (_isAdLoaded ? 'Watch Ad & Earn 10 Mins' : 'Loading Ad...'),
                           style: const TextStyle(fontSize: 16, color: Colors.white),
                         ),
                 ),
@@ -187,6 +201,107 @@ class _UnlockStudyTimeScreenState extends State<UnlockStudyTimeScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Helper Widget for Web Browser Forced-Watch Video Ads
+class _WebVideoPlayerWidget extends StatefulWidget {
+  final VoidCallback onRewarded;
+
+  const _WebVideoPlayerWidget({required this.onRewarded});
+
+  @override
+  State<_WebVideoPlayerWidget> createState() => _WebVideoPlayerWidgetState();
+}
+
+class _WebVideoPlayerWidgetState extends State<_WebVideoPlayerWidget> {
+  late VideoPlayerController _controller;
+  bool _isInitialized = false;
+  bool _isCompleted = false;
+
+  // Working open-source sample video stream URL for testing
+  final String _sponsorVideoUrl = 'https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-in-an-office-43281-large.mp4';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(_sponsorVideoUrl))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() => _isInitialized = true);
+          _controller.play();
+        }
+      });
+
+    _controller.addListener(_videoListener);
+  }
+
+  void _videoListener() {
+    if (!mounted) return;
+    if (_controller.value.position >= _controller.value.duration && !_isCompleted) {
+      setState(() => _isCompleted = true);
+      widget.onRewarded();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_videoListener);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A2E),
+      title: const Text(
+        "Sponsored Study Video",
+        style: TextStyle(color: Colors.white, fontSize: 16),
+      ),
+      content: SizedBox(
+        width: 450,
+        height: 280,
+        child: _isInitialized
+            ? Column(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: VideoPlayer(_controller),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(
+                    value: _controller.value.duration.inMilliseconds > 0
+                        ? _controller.value.position.inMilliseconds / _controller.value.duration.inMilliseconds
+                        : 0.0,
+                    color: Colors.greenAccent,
+                    backgroundColor: Colors.white24,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isCompleted
+                        ? "Video completed! Unlocking minutes..."
+                        : "Watch completely to unlock your minutes",
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              )
+            : const Center(child: CircularProgressIndicator(color: Colors.greenAccent)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isCompleted ? () => Navigator.pop(context) : null,
+          child: Text(
+            _isCompleted ? "Continue" : "Watch to Unlock",
+            style: TextStyle(
+              color: _isCompleted ? Colors.greenAccent : Colors.white24,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

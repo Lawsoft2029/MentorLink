@@ -27,6 +27,8 @@ dependencies:
   flutter_dotenv: ^5.2.1
   google_mobile_ads: ^5.2.0
   flutter_local_notifications: ^17.0.0
+  interactive_media_ads: 0.3.0+17
+  video_player: ^2.8.2
 
 
   flutter_highlight: ^0.7.0

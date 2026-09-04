@@ -29,7 +29,8 @@ class VaultScreen extends StatelessWidget {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>;
             if (data['totalMinutesLearned'] != null) {
-              int mins = data['totalMinutesLearned'];
+              // Safely handle both double and int values from Firestore
+              double mins = (data['totalMinutesLearned'] as num).toDouble();
               learningHours = "${(mins / 60).toStringAsFixed(1)} hrs";
             }
             userTier = data['userTier'] ?? 'Freemium';
@@ -152,14 +153,14 @@ class VaultScreen extends StatelessWidget {
               ),
               child: ListTile(
                 leading: const Icon(Icons.edit_note, color: Colors.blueAccent),
-                title: Text("Note: ${sessionId.substring(0, 6)}...", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                title: Text("Note: ${sessionId.substring(0, sessionId.length > 6 ? 6 : sessionId.length)}...", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 subtitle: Text(content, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey[700], fontSize: 12)),
                 trailing: const Icon(Icons.chevron_right, size: 18),
                 onTap: () {
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: Text("Review Note (${sessionId.substring(0, 6)})"),
+                      title: Text("Review Note (${sessionId.substring(0, sessionId.length > 6 ? 6 : sessionId.length)})"),
                       content: SingleChildScrollView(child: Text(content)),
                       actions: [
                         TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
@@ -200,7 +201,7 @@ class VaultScreen extends StatelessWidget {
           itemBuilder: (context, index) {
             final recData = recordings[index].data() as Map<String, dynamic>;
             final sessionId = recData['sessionId'] ?? 'Session';
-            final duration = recData['durationMinutes'] ?? 0.0;
+            final duration = (recData['durationMinutes'] ?? 0.0) as num;
 
             return Card(
               elevation: 0,
@@ -214,12 +215,12 @@ class VaultScreen extends StatelessWidget {
                   backgroundColor: Color(0xFFF3E5F5),
                   child: Icon(Icons.play_arrow, color: Colors.purple),
                 ),
-                title: Text("Class Recording (${sessionId.substring(0, 6)}...)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                subtitle: Text("Duration: ${duration.toStringAsFixed(1)} mins • Offline Ready", style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                title: Text("Class Recording (${sessionId.substring(0, sessionId.length > 6 ? 6 : sessionId.length)}...)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                subtitle: Text("Duration: ${duration.toDouble().toStringAsFixed(1)} mins • Offline Ready", style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                 trailing: const Icon(Icons.download_done, color: Colors.green, size: 18),
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Loading recording for session ${sessionId.substring(0, 6)}...")),
+                    SnackBar(content: Text("Loading recording for session ${sessionId.substring(0, sessionId.length > 6 ? 6 : sessionId.length)}...")),
                   );
                 },
               ),
