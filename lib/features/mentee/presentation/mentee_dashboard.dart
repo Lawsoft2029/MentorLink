@@ -342,10 +342,15 @@ class HomeScreenContent extends StatelessWidget {
                           } else {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   backgroundColor: Colors.redAccent,
-                                  content: Text(
+                                  content: const Text(
                                     "Insufficient Balance! Watch an ad to unlock study time.",
+                                  ),
+                                  action: SnackBarAction(
+                                    label: "Watch Ad",
+                                    textColor: Colors.amberAccent,
+                                    onPressed: () => _watchAdAndEarn(context),
                                   ),
                                 ),
                               );

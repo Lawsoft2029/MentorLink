@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mentorlinks_app_project/features/chat/presentation/mentor_review_dialog.dart';
+import 'package:mentorlinks_app_project/features/gamification/presentation/unlock_study_time_screen.dart';
 
 class LiveSessionScreen extends StatefulWidget {
   final String sessionId;
@@ -434,7 +435,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
+      builder: (modalContext) => Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -455,41 +456,24 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[800], foregroundColor: Colors.white),
               icon: const Icon(Icons.slow_motion_video),
-              label: const Text("Watch Ad & Earn +15 Minutes"),
+              label: const Text("Watch Ad & Earn +1 Hour (60 Mins)"),
               onPressed: () async {
-                Navigator.pop(context);
-                final uid = FirebaseAuth.instance.currentUser?.uid;
-                if (uid != null) {
-                  try {
-                    final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
-                    final snap = await docRef.get();
-                    double currentWallet = 0.0;
-                    if (snap.exists && snap.data()!.containsKey('walletMinutes')) {
-                      currentWallet = (snap.data()!['walletMinutes'] as num).toDouble();
-                    }
-
-                    await docRef.set({
-                      'walletMinutes': currentWallet + 15.0,
-                    }, SetOptions(merge: true));
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Ads completed successfully! +15 minutes unlocked.")),
-                      );
-                      setState(() {
-                        _startSession();
-                      });
-                    }
-                  } catch (e) {
-                    debugPrint("Error updating credits: $e");
-                  }
+                Navigator.pop(modalContext);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UnlockStudyTimeScreen(),
+                  ),
+                );
+                if (mounted) {
+                  _recheckWalletAndResumeSession();
                 }
               },
             ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(modalContext);
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               child: const Text("Return to Dashboard", style: TextStyle(color: Colors.redAccent)),
@@ -498,6 +482,37 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _recheckWalletAndResumeSession() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      final snap = await docRef.get();
+      if (snap.exists && mounted) {
+        final data = snap.data() ?? {};
+        String userTier = data['userTier'] ?? 'Freemium';
+        double availableMinutes = userTier == 'Premium' || userTier == 'Enterprise'
+            ? (data['monthlyPackageMinutes'] ?? 0.0).toDouble()
+            : (data['walletMinutes'] ?? 0.0).toDouble();
+
+        if (availableMinutes > 0.0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.green,
+              content: Text("Ad completed successfully! +1 Hour study pass active."),
+            ),
+          );
+          _startSession();
+        } else {
+          _showTopUpOrAdModal(context);
+        }
+      }
+    } catch (e) {
+      debugPrint("Error checking wallet: $e");
+    }
   }
 
   @override

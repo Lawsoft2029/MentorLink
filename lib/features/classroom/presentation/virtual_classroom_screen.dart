@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mentorlinks_app_project/features/gamification/presentation/unlock_study_time_screen.dart';
 
 class VirtualClassroomScreen extends StatefulWidget {
   final String roomName;
@@ -29,6 +30,7 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
   bool _isVideoOff = false;
   bool _isScreenSharing = false;
   bool _isPaused = false;
+  bool _isModalShowing = false;
 
   int _seconds = 0;
   double _totalCost = 0.0;
@@ -37,11 +39,38 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkInitialBalance();
+    });
+  }
+
+  Future<void> _checkInitialBalance() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    if (widget.role == 'mentee') {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        if (doc.exists && mounted) {
+          final data = doc.data() as Map<String, dynamic>;
+          double walletMinutes = (data['walletMinutes'] ?? 0.0).toDouble();
+          double walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+
+          if (walletMinutes <= 0.0 && walletBalanceUSD < widget.ratePerMinute) {
+            _showStudyWalletEmptyModal(context);
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint("Initial wallet balance check error: $e");
+      }
+    }
     _startSessionTimer();
   }
 
-  // --- BOSS RULE: LIVE PER-MINUTE WALLET DEDUCTION TIMER ---
+  // --- LIVE PER-MINUTE WALLET DEDUCTION TIMER ---
   void _startSessionTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (_isPaused) return;
 
@@ -57,20 +86,13 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
           if (docSnapshot.exists) {
             final data = docSnapshot.data() as Map<String, dynamic>;
             double walletMinutes = (data['walletMinutes'] ?? 0.0).toDouble();
+            double walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0).toDouble();
 
-            // Auto-close if wallet hits zero
-            if (walletMinutes <= 0.0) {
+            // Prompt ad unlock if wallet hits zero instead of auto-closing session
+            if (walletMinutes <= 0.0 && walletBalanceUSD < widget.ratePerMinute) {
               _timer?.cancel();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    backgroundColor: Colors.redAccent,
-                    content: Text(
-                      "Session closed: Your study wallet is empty! Watch more ads to continue.",
-                    ),
-                  ),
-                );
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                _showStudyWalletEmptyModal(context);
               }
               return;
             }
@@ -99,6 +121,149 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
         }
       }
     });
+  }
+
+  // --- STUDY WALLET EMPTY: CROSS-PLATFORM AD-REWARD MODAL ---
+  void _showStudyWalletEmptyModal(BuildContext context) {
+    if (_isModalShowing || !mounted) return;
+    _isModalShowing = true;
+
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 48,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 48,
+                  color: Colors.amberAccent,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Study Wallet Empty! 🛑",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              "You don't have enough balance to start or continue this live class session. Watch a short sponsored ad to unlock 1 hour of study time (+60 mins) and \$1.00 credit!",
+              style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF333697),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+              ),
+              icon: const Icon(Icons.play_circle_fill, color: Colors.amberAccent, size: 24),
+              label: const Text(
+                "Watch Ad & Unlock Class (+60 Mins)",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () async {
+                Navigator.pop(modalContext);
+                _isModalShowing = false;
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UnlockStudyTimeScreen(),
+                  ),
+                );
+                if (mounted) {
+                  _recheckWalletAndResume();
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(modalContext);
+                _isModalShowing = false;
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text(
+                "Return to Dashboard",
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      _isModalShowing = false;
+    });
+  }
+
+  Future<void> _recheckWalletAndResume() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && mounted) {
+        final data = doc.data() as Map<String, dynamic>;
+        double walletMinutes = (data['walletMinutes'] ?? 0.0).toDouble();
+        double walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+
+        if (walletMinutes > 0.0 || walletBalanceUSD >= widget.ratePerMinute) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.green,
+              content: Text("Study pass active! Starting live class session..."),
+            ),
+          );
+          setState(() {
+            _isPaused = false;
+          });
+          _startSessionTimer();
+        } else {
+          // Still empty (e.g. user backed out without watching ad)
+          _showStudyWalletEmptyModal(context);
+        }
+      }
+    } catch (e) {
+      debugPrint("Error re-checking wallet: $e");
+    }
   }
 
   @override
@@ -189,12 +354,32 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("Classroom: ${widget.roomName}"),
-            Text(
-              "${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}",
-              style: const TextStyle(color: Colors.greenAccent, fontSize: 16),
+            Expanded(
+              child: Text(
+                "Classroom: ${widget.roomName}",
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4)),
+              ),
+              child: Text(
+                "${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}",
+                style: const TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                ),
+              ),
             ),
           ],
         ),
@@ -202,7 +387,8 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.security),
+            icon: const Icon(Icons.security, size: 20),
+            tooltip: "Encrypted Room",
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
