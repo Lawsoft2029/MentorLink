@@ -29,6 +29,8 @@ dependencies:
   flutter_local_notifications: ^17.0.0
   interactive_media_ads: 0.3.0+17
   video_player: ^2.8.2
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.1
 
 
   flutter_highlight: ^0.7.0

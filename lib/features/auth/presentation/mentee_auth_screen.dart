@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 class MenteeAuthScreen extends StatefulWidget {
   const MenteeAuthScreen({super.key});
@@ -17,6 +21,101 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      // Save mentee profile to Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'uid': userCredential.user!.uid,
+            'name': userCredential.user!.displayName ?? 'Mentee',
+            'email': userCredential.user!.email ?? '',
+            'role': 'mentee',
+            'walletMinutes': 10.0,
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CourseSelectionScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Google Sign-In failed: $e")));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() => _isLoading = true);
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final OAuthProvider provider = OAuthProvider('apple.com');
+      final AuthCredential credential = provider.credential(
+        idToken: appleCredential.identityToken,
+      );
+
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'uid': userCredential.user!.uid,
+            'name': appleCredential.givenName ?? 'Mentee',
+            'email': userCredential.user!.email ?? '',
+            'role': 'mentee',
+            'walletMinutes': 10.0,
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CourseSelectionScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Apple Sign-In failed: $e")));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -64,12 +163,13 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
             'role': 'mentee',
             'userTier': 'Freemium',
             'isPremium': false,
-            'walletMinutes': 0.0, // Tracks ad-earned minutes for per-minute class sessions
+            'walletMinutes':
+                0.0, // Tracks ad-earned minutes for per-minute class sessions
             'walletBalanceUSD': 0.0,
             'mentorEarningsUSD': 0.0,
             'connectionRatePerMin': 0.10,
-            'enrolledCourses': [], 
-            'courseTimelines': {}, 
+            'enrolledCourses': [],
+            'courseTimelines': {},
             'createdAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
@@ -205,11 +305,22 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
 
             const SizedBox(height: 25),
 
+            // Replace the single Google button with these options:
             _socialButton(
-              label: "Continue with Google",
+              label: "Google",
               icon: Icons.g_mobiledata,
-              onTap: () {},
+              onTap: _signInWithGoogle,
             ),
+            const SizedBox(height: 15),
+            // To this stricter check:
+            if (!kIsWeb &&
+                (defaultTargetPlatform == TargetPlatform.iOS ||
+                    defaultTargetPlatform == TargetPlatform.macOS))
+              _socialButton(
+                label: "Apple",
+                icon: Icons.apple,
+                onTap: _signInWithApple,
+              ),
 
             const SizedBox(height: 30),
             Center(
