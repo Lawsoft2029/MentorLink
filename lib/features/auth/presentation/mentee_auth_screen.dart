@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,22 +27,28 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
+      print("1. starting Google Sign-In...");
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
+        print("Google Sign-In cancelled by user.");
         setState(() => _isLoading = false);
         return;
       }
+      print("2. Google user obtained, ${googleUser.email}");
+
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-
+      print("3. signing in with Firebase Auth...");
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithCredential(credential);
+      print("4. Firebase Auth successful, ${userCredential.user!.email}");
 
       // Save mentee profile to Firestore
+      print("5. saving user profile to Firestore...");
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -52,8 +60,10 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
             'walletMinutes': 10.0,
             'createdAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
+          print("6. User profile saved to Firestore successfully.");
 
       if (mounted) {
+        print("7. Navigating to CourseSelectionScreen...");
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -73,6 +83,7 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
   Future<void> _signInWithApple() async {
     setState(() => _isLoading = true);
     try {
+      print("1. starting Apple Sign-In...");
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
