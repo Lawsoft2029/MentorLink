@@ -1,5 +1,8 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
-// Ensure these files exist in your project
+import 'package:mentorlinks_app_project/features/profile/presentation/profile_dashboard_screen.dart';
+import 'package:mentorlinks_app_project/features/chat/presentation/chat_screen.dart'; // <-- Added import for Chat
 import 'vault_screen.dart';
 import 'wallet_screen.dart';
 import 'live_session_screen.dart';
@@ -20,7 +23,7 @@ class _MenteeHomeScreenState extends State<MenteeHomeScreen> {
     const HomeContent(), // Your original Home UI
     const VaultScreen(),
     const WalletScreen(),
-    const Center(child: Text("Profile Screen Coming Soon")),
+    const ProfileDashboardScreen(),
   ];
 
   @override
@@ -205,10 +208,16 @@ class HomeContent extends StatelessWidget {
               const SizedBox(height: 8),
               ElevatedButton(
                 onPressed: () {
-                  // Navigate to Live Session when Hire is clicked
+                  print("Connecting to mentor...");
+                  // Navigate to Chat Screen first so they can plan the session per our workflow!
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => LiveSessionScreen(sessionId: '', role: 'mentee')),
+                    MaterialPageRoute(
+                      builder: (context) => const ChatScreen(
+                        chatRoomId: "sample_mentor_mentee_room",
+                        receiverName: "Engr. Samuel",
+                      ),
+                    ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -217,7 +226,7 @@ class HomeContent extends StatelessWidget {
                   minimumSize: const Size(60, 30),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text("Hire", style: TextStyle(fontSize: 12, color: Colors.white)),
+                child: const Text("Connect", style: TextStyle(fontSize: 12, color: Colors.white)),
               ),
             ],
           ),

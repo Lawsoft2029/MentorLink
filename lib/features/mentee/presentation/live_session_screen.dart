@@ -57,8 +57,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   bool _camEnabled = true;
 
   // --- CHAT LOGIC ---
-  final List<Map<String, String>> _messages = [];
   final TextEditingController _chatController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
 
   final Map<String, String> _sessionFiles = {
     "main.dart": "void main() {\n  runApp(const MyApp());\n}",
@@ -206,7 +206,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
   }
 
-  // --- CHAT OVERLAY ---
+  // --- UNIFIED CHAT OVERLAY CONNECTED TO FIRESTORE ---
   void _showChatSheet() {
     showModalBottomSheet(
       context: context,
@@ -217,6 +217,32 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+          void sendSessionMessage() async {
+            if (_chatController.text.trim().isEmpty) return;
+            final text = _chatController.text.trim();
+            _chatController.clear();
+
+            try {
+              if (currentUserId != null) {
+                await FirebaseFirestore.instance
+                    .collection('chat_rooms')
+                    .doc(widget.sessionId)
+                    .collection('messages')
+                    .add({
+                  'senderId': currentUserId,
+                  'message': text,
+                  'timestamp': FieldValue.serverTimestamp(),
+                  'localTime': DateTime.now().millisecondsSinceEpoch,
+                  'status': 'sent',
+                });
+              }
+            } catch (e) {
+              debugPrint("Failed to send live chat message: $e");
+            }
+          }
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -247,23 +273,69 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                   ),
                   const Divider(color: Colors.white24),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) => ListTile(
-                        title: Text(
-                          _messages[index]['user']!,
-                          style: TextStyle(
-                            color: _messages[index]['user'] == "System"
-                                ? Colors.orangeAccent
-                                : Colors.greenAccent,
-                            fontSize: 12,
-                          ),
-                        ),
-                        subtitle: Text(
-                          _messages[index]['text']!,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
+                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('chat_rooms')
+                          .doc(widget.sessionId)
+                          .collection('messages')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              "No messages yet. Say hello!",
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                          );
+                        }
+
+                        final docs = snapshot.data!.docs;
+                        docs.sort((a, b) {
+                          final timeA = a.data()['localTime'] ?? 0;
+                          final timeB = b.data()['localTime'] ?? 0;
+                          return timeA.compareTo(timeB);
+                        });
+
+                        return ListView.builder(
+                          controller: _chatScrollController,
+                          itemCount: docs.length,
+                          itemBuilder: (context, index) {
+                            final data = docs[index].data();
+                            final bool isMe = data['senderId'] == currentUserId;
+                            final messageText = data['message'] ?? '';
+
+                            return Align(
+                              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isMe ? const Color(0xFF333697) : Colors.white10,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      messageText,
+                                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      "✓",
+                                      style: TextStyle(color: Colors.white60, fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
                   Padding(
@@ -284,6 +356,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                                 borderSide: BorderSide.none,
                               ),
                             ),
+                            onSubmitted: (_) => sendSessionMessage(),
                           ),
                         ),
                         IconButton(
@@ -291,18 +364,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                             Icons.send,
                             color: Colors.greenAccent,
                           ),
-                          onPressed: () {
-                            if (_chatController.text.isNotEmpty) {
-                              setModalState(() {
-                                _messages.add({
-                                  "user": "Me",
-                                  "text": _chatController.text,
-                                });
-                                _chatController.clear();
-                              });
-                              setState(() {});
-                            }
-                          },
+                          onPressed: sendSessionMessage,
                         ),
                       ],
                     ),
@@ -520,6 +582,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     _timer?.cancel();
     _codeController.dispose();
     _chatController.dispose();
+    _chatScrollController.dispose();
     _notesController.dispose();
     _notesDebounceTimer?.cancel();
     if (!kIsWeb) {

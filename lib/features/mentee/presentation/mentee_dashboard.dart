@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mentorlinks_app_project/features/auth/presentation/subscription_screen.dart';
 import 'package:mentorlinks_app_project/features/auth/presentation/welcome_screen.dart';
+import 'package:mentorlinks_app_project/features/chat/presentation/chat_screen.dart'; // <-- Added import for Chat
 import 'package:mentorlinks_app_project/shared/widgets/star_rating_widget.dart';
 import 'wallet_screen.dart';
 import 'vault_screen.dart';
@@ -109,9 +110,9 @@ class HomeScreenContent extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: uid != null
             ? FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .snapshots()
+                .collection('users')
+                .doc(uid)
+                .snapshots()
             : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -130,7 +131,6 @@ class HomeScreenContent extends StatelessWidget {
             userTier = data['userTier'] ?? 'Freemium';
 
             if (data['totalMinutesLearned'] != null) {
-              // Safely handle whether Firestore returns an int or double
               int mins = (data['totalMinutesLearned'] as num).toInt();
 
               learningHours = mins >= 60
@@ -143,7 +143,7 @@ class HomeScreenContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- PRO UPGRADE BANNER (ADDED HERE) ---
+                // --- PRO UPGRADE BANNER ---
                 InkWell(
                   onTap: () {
                     Navigator.push(
@@ -285,8 +285,6 @@ class HomeScreenContent extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: 3,
                   itemBuilder: (context, index) {
-                    const double mentorRatePerMin = 0.10;
-
                     return ListTile(
                       leading: const CircleAvatar(
                         backgroundColor: Color(0xFF333697),
@@ -305,61 +303,24 @@ class HomeScreenContent extends StatelessWidget {
                       ),
                       isThreeLine: true,
                       trailing: TextButton(
-                        onPressed: () async {
-                          final hasSufficientUSD =
-                              walletBalanceUSD >= mentorRatePerMin;
-                          final hasUnlockedMinutes = walletMinutes > 0.0;
-
-                          if (hasSufficientUSD || hasUnlockedMinutes) {
-                            if (uid != null) {
-                              final userDoc = FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(uid);
-                              if (hasUnlockedMinutes) {
-                                await userDoc.update({
-                                  'walletMinutes': FieldValue.increment(-1.0),
-                                });
-                              } else {
-                                await userDoc.update({
-                                  'walletBalanceUSD': FieldValue.increment(
-                                    -mentorRatePerMin,
-                                  ),
-                                });
-                              }
-                            }
-
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "Deducting credit... Routing to Live Session room.",
-                                  ),
-                                ),
-                              );
-
-                              onNavigateToLive();
-                            }
-                          } else {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  backgroundColor: Colors.redAccent,
-                                  content: const Text(
-                                    "Insufficient Balance! Watch an ad to unlock study time.",
-                                  ),
-                                  action: SnackBarAction(
-                                    label: "Watch Ad",
-                                    textColor: Colors.amberAccent,
-                                    onPressed: () => _watchAdAndEarn(context),
-                                  ),
-                                ),
-                              );
-                            }
-                          }
+                        onPressed: () {
+                          // Navigate to Chat Screen to discuss goals and schedule first!
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ChatScreen(
+                                chatRoomId: "sample_mentor_mentee_room",
+                                receiverName: "Expert Developer",
+                              ),
+                            ),
+                          );
                         },
                         child: const Text(
                           "Connect",
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF333697),
+                          ),
                         ),
                       ),
                     );

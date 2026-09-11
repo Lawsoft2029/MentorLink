@@ -22,6 +22,7 @@ class MainDashboardScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF333697),
         foregroundColor: Colors.white,
         actions: [
+          // Profile Button
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () {
@@ -31,6 +32,18 @@ class MainDashboardScreen extends StatelessWidget {
                   builder: (context) => const ProfileDashboardScreen(),
                 ),
               );
+            },
+          ),
+          // Logout / Exit Button added here to prevent getting stuck
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: "Logout",
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                // Pops all routes and returns to root/auth screen (adjust route name if needed)
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              }
             },
           ),
         ],
@@ -156,9 +169,7 @@ class MainDashboardScreen extends StatelessWidget {
                     },
                   ),
 
-                  // Add these cards inside your GridView.count in MainDashboardScreen:
-
-                  // 1. Skill Roadmap Card
+                  // 5. Skill Roadmap Card
                   _DashboardCard(
                     icon: Icons.map,
                     title: "My Roadmap",
@@ -173,7 +184,7 @@ class MainDashboardScreen extends StatelessWidget {
                     },
                   ),
 
-                  // 2. Virtual Classroom Card
+                  // 6. Virtual Classroom Card
                   _DashboardCard(
                     icon: Icons.video_call,
                     title: "Live Class",
@@ -193,7 +204,7 @@ class MainDashboardScreen extends StatelessWidget {
                     },
                   ),
 
-                  // 3. Enterprise Onboarding & Verification Card
+                  // 7. Enterprise Onboarding & Verification Card
                   _DashboardCard(
                     icon: Icons.business,
                     title: "Enterprise B2B",
