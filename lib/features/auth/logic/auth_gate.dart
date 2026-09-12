@@ -1,9 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // REQUIRED: For reading role profile records
-import 'package:mentorlinks_app_project/features/auth/presentation/welcome_screen.dart';
-import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_dashboard.dart';
-import 'package:mentorlinks_app_project/features/mentor/presentation/mentor_dashboard.dart'; // REQUIRED: For routing mentors correctly
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mentorlinks_app_project/features/auth/presentation/splash_screen.dart';
+import 'package:mentorlinks_app_project/features/mentee/presentation/course_selection_screen.dart';
+import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_learning_hub_screen.dart';
+import 'package:mentorlinks_app_project/features/mentor/presentation/mentor_dashboard.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -11,60 +12,65 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      // This listener connects directly to Firebase
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        
         // 1. Connection State: Waiting
-        // This is shown while Firebase is checking the local cache/server
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF333697),
-              ),
+              child: CircularProgressIndicator(color: Color(0xFF333697)),
             ),
           );
         }
 
-        // 2. Logic: User is Authenticated
-        // If Firebase finds a valid user session, evaluate their profile role type
-        if (snapshot.hasData) {
+        // 2. User is Authenticated
+        if (snapshot.hasData && snapshot.data != null) {
           final String uid = snapshot.data!.uid;
 
-          return FutureBuilder<DocumentSnapshot>(
-            future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+          return StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .snapshots(),
             builder: (context, userDocSnapshot) {
               if (userDocSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF333697),
-                    ),
+                    child: CircularProgressIndicator(color: Color(0xFF333697)),
                   ),
                 );
               }
 
-              // Safety check: If document doesn't exist yet, send back to welcome
               if (!userDocSnapshot.hasData || !userDocSnapshot.data!.exists) {
-                return const WelcomeScreen();
+                return const SplashScreen();
               }
 
-              final userData = userDocSnapshot.data!.data() as Map<String, dynamic>?;
-              final String accountType = userData?['accountType'] ?? 'mentee';
+              final userData =
+                  userDocSnapshot.data!.data() as Map<String, dynamic>?;
+              final String role =
+                  userData?['role'] ?? userData?['accountType'] ?? 'mentee';
 
-              if (accountType == 'mentor') {
+              if (role == 'mentor') {
                 return const MentorDashboard();
               } else {
-                return const MenteeDashboard();
+                // Mentee Flow Routing:
+                // Check if user has enrolled courses
+                final List enrolledCourses = userData?['enrolledCourses'] ?? [];
+
+                if (enrolledCourses.isEmpty) {
+                  // Step 2: New student needs to select course(s)
+                  return const CourseSelectionScreen();
+                } else {
+                  // Step 7: Returning student sees their active Learning Hub
+                  return const MenteeLearningHubScreen();
+                }
               }
             },
           );
         }
 
-        // 3. Logic: No User Found
-        // If no one is logged in, show the Welcome Screen
-        return const WelcomeScreen();
+        // 3. Unauthenticated -> Splash / Welcome
+        return const SplashScreen();
       },
     );
   }

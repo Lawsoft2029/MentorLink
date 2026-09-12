@@ -33,7 +33,9 @@ class MonetizationService {
   }
 
   // Trigger Ad (or simulate instantly on web/pitch mode)
-  Future<void> watchAdForReward({required Function(double addedMinutes) onRewarded}) async {
+  Future<void> watchAdForReward({
+    required Function(double addedMinutes) onRewarded,
+  }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -69,7 +71,7 @@ class MonetizationService {
   Future<void> _creditUserWallet(String uid, double minutesToAdd) async {
     final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
     final snapshot = await docRef.get();
-    
+
     double currentMinutes = 0.0;
     if (snapshot.exists && snapshot.data()!.containsKey('walletMinutes')) {
       currentMinutes = (snapshot.data()!['walletMinutes'] as num).toDouble();

@@ -6,7 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FlutterwavePaymentService {
   // Pulls the public key securely from the hidden .env file
-  static String get _sandboxPublicKey => dotenv.env['FLUTTERWAVE_PUBLIC_KEY'] ?? '';
+  static String get _sandboxPublicKey =>
+      dotenv.env['FLUTTERWAVE_PUBLIC_KEY'] ?? '';
 
   /// Triggers the Flutterwave Inline Card Payment modal for Mentee Pro Subscriptions
   static Future<void> startProSubscriptionPayment({
@@ -20,7 +21,11 @@ class FlutterwavePaymentService {
     }
 
     if (_sandboxPublicKey.isEmpty) {
-      _showToast(context, "Error: Flutterwave Public Key missing from environment.", Colors.red);
+      _showToast(
+        context,
+        "Error: Flutterwave Public Key missing from environment.",
+        Colors.red,
+      );
       return;
     }
 
@@ -45,7 +50,8 @@ class FlutterwavePaymentService {
       customization: Customization(
         title: "MentorLinks Pro Academy",
         description: "Monthly Unlimited Access Pass",
-        logo: "https://raw.githubusercontent.com/Lawsoft2029/pay/main/assets/app_logo.png",
+        logo:
+            "https://raw.githubusercontent.com/Lawsoft2029/pay/main/assets/app_logo.png",
       ),
       isTestMode: true, // Sandbox test mode enabled
     );
@@ -55,21 +61,32 @@ class FlutterwavePaymentService {
 
       if (response.status == "successful" || response.success == true) {
         // Update user tier in Firestore upon successful payment verification
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-          'userTier': 'Premium',
-          'isPremium': true,
-          'subscriptionDate': FieldValue.serverTimestamp(),
-          'lastTxRef': response.txRef,
-          'paymentGateway': 'Flutterwave Card',
-        });
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+              'userTier': 'Premium',
+              'isPremium': true,
+              'subscriptionDate': FieldValue.serverTimestamp(),
+              'lastTxRef': response.txRef,
+              'paymentGateway': 'Flutterwave Card',
+            });
 
         if (context.mounted) {
-          _showToast(context, "Payment successful! Welcome to MentorLinks Pro.", Colors.green);
+          _showToast(
+            context,
+            "Payment successful! Welcome to MentorLinks Pro.",
+            Colors.green,
+          );
           Navigator.pop(context); // Close subscription screen
         }
       } else {
         if (context.mounted) {
-          _showToast(context, "Payment cancelled or incomplete.", Colors.orange);
+          _showToast(
+            context,
+            "Payment cancelled or incomplete.",
+            Colors.orange,
+          );
         }
       }
     } catch (e) {
@@ -80,8 +97,8 @@ class FlutterwavePaymentService {
   }
 
   static void _showToast(BuildContext context, String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 }

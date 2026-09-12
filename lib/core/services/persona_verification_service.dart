@@ -27,21 +27,19 @@ class PersonaVerificationService {
               "company-name": companyName,
               "country-code": countryCode,
               "registration-number": registrationNumber,
-            }
-          }
+            },
+          },
         }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data['data'] ?? data,
-        };
+        return {'success': true, 'data': data['data'] ?? data};
       } else {
         return {
           'success': false,
-          'message': 'Persona verification failed with status: ${response.statusCode}',
+          'message':
+              'Persona verification failed with status: ${response.statusCode}',
         };
       }
     } catch (e) {

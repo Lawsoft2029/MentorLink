@@ -30,12 +30,16 @@ class _MentorReviewDialogState extends State<MentorReviewDialog> {
     setState(() => _isSubmitting = true);
 
     try {
-      final mentorRef = FirebaseFirestore.instance.collection('users').doc(widget.mentorUid);
-      final sessionRef = FirebaseFirestore.instance.collection('sessions').doc(widget.sessionId);
+      final mentorRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.mentorUid);
+      final sessionRef = FirebaseFirestore.instance
+          .collection('sessions')
+          .doc(widget.sessionId);
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final mentorSnapshot = await transaction.get(mentorRef);
-        
+
         if (!mentorSnapshot.exists) {
           throw Exception("Mentor profile not found.");
         }
@@ -45,7 +49,9 @@ class _MentorReviewDialogState extends State<MentorReviewDialog> {
         int totalReviews = (data['totalReviewsCount'] ?? 0).toInt();
 
         // Calculate new running average rating
-        double newAvgRating = ((currentAvgRating * totalReviews) + _selectedRating) / (totalReviews + 1);
+        double newAvgRating =
+            ((currentAvgRating * totalReviews) + _selectedRating) /
+            (totalReviews + 1);
         int newTotalReviews = totalReviews + 1;
 
         // Update mentor's aggregate ratings
@@ -55,9 +61,7 @@ class _MentorReviewDialogState extends State<MentorReviewDialog> {
         });
 
         // Mark session as reviewed
-        transaction.update(sessionRef, {
-          'isReviewed': true,
-        });
+        transaction.update(sessionRef, {'isReviewed': true});
       });
 
       // Optionally save individual review to a subcollection
@@ -66,21 +70,27 @@ class _MentorReviewDialogState extends State<MentorReviewDialog> {
           .doc(widget.mentorUid)
           .collection('reviews')
           .add({
-        'rating': _selectedRating,
-        'feedback': _feedbackController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'rating': _selectedRating,
+            'feedback': _feedbackController.text.trim(),
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Thank you! Review submitted successfully."), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("Thank you! Review submitted successfully."),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error submitting review: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Error submitting review: $e"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -94,7 +104,10 @@ class _MentorReviewDialogState extends State<MentorReviewDialog> {
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text("Rate Your Mentorship Session", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+      title: const Text(
+        "Rate Your Mentorship Session",
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -104,7 +117,7 @@ class _MentorReviewDialogState extends State<MentorReviewDialog> {
               style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.3),
             ),
             const SizedBox(height: 20),
-            
+
             // Interactive Star Row
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -131,7 +144,9 @@ class _MentorReviewDialogState extends State<MentorReviewDialog> {
               decoration: InputDecoration(
                 hintText: "Write a short comment (optional)...",
                 hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -145,12 +160,27 @@ class _MentorReviewDialogState extends State<MentorReviewDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           onPressed: _isSubmitting ? null : _submitReview,
           child: _isSubmitting
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text("Submit Review", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  "Submit Review",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ),
       ],
     );

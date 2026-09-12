@@ -25,10 +25,21 @@ class _MentorEarningsScreenState extends State<MentorEarningsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirm Payout Request"),
-        content: Text("Request withdrawal for \$${currentEarnings.toStringAsFixed(2)}? Funds will be sent to your connected bank/crypto account."),
+        content: Text(
+          "Request withdrawal for \$${currentEarnings.toStringAsFixed(2)}? Funds will be sent to your connected bank/crypto account.",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Withdraw", style: TextStyle(fontWeight: FontWeight.bold))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              "Withdraw",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );
@@ -45,21 +56,25 @@ class _MentorEarningsScreenState extends State<MentorEarningsScreen> {
         // Deduct earnings and log payout request transaction
         await FirebaseFirestore.instance.runTransaction((transaction) async {
           final snapshot = await transaction.get(userRef);
-          double balance = (snapshot.data()?['mentorEarningsUSD'] ?? 0.0).toDouble();
+          double balance = (snapshot.data()?['mentorEarningsUSD'] ?? 0.0)
+              .toDouble();
 
           if (balance < currentEarnings) {
             throw Exception("Insufficient balance.");
           }
 
           transaction.update(userRef, {
-            'mentorEarningsUSD': 0.0, // Reset redeemable balance after payout request
+            'mentorEarningsUSD':
+                0.0, // Reset redeemable balance after payout request
           });
         });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Payout request submitted successfully! Processing transfer."),
+              content: Text(
+                "Payout request submitted successfully! Processing transfer.",
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -67,7 +82,10 @@ class _MentorEarningsScreenState extends State<MentorEarningsScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Withdrawal failed: $e"), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text("Withdrawal failed: $e"),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -93,7 +111,10 @@ class _MentorEarningsScreenState extends State<MentorEarningsScreen> {
       backgroundColor: Colors.grey.shade50,
       body: StreamBuilder<DocumentSnapshot>(
         stream: uid != null
-            ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
+            ? FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .snapshots()
             : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -157,7 +178,7 @@ class _MentorEarningsScreenState extends State<MentorEarningsScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Payout Button
                 SizedBox(
                   width: double.infinity,
@@ -165,19 +186,33 @@ class _MentorEarningsScreenState extends State<MentorEarningsScreen> {
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    onPressed: _isWithdrawing ? null : () => _requestWithdrawal(mentorEarningsUSD),
+                    onPressed: _isWithdrawing
+                        ? null
+                        : () => _requestWithdrawal(mentorEarningsUSD),
                     icon: _isWithdrawing
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
-                        : const Icon(Icons.account_balance_wallet, color: Colors.white),
+                        : const Icon(
+                            Icons.account_balance_wallet,
+                            color: Colors.white,
+                          ),
                     label: Text(
                       _isWithdrawing ? "Processing..." : "Withdraw Funds",
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

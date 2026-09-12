@@ -7,11 +7,13 @@ class EnterpriseDashboardScreen extends StatefulWidget {
   const EnterpriseDashboardScreen({super.key});
 
   @override
-  State<EnterpriseDashboardScreen> createState() => _EnterpriseDashboardScreenState();
+  State<EnterpriseDashboardScreen> createState() =>
+      _EnterpriseDashboardScreenState();
 }
 
 class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
-  final TextEditingController _employeeEmailController = TextEditingController();
+  final TextEditingController _employeeEmailController =
+      TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -24,7 +26,10 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
     final email = _employeeEmailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a valid employee email."), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text("Please enter a valid employee email."),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -46,13 +51,19 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
       _employeeEmailController.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Employee training seat assigned successfully!"), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("Employee training seat assigned successfully!"),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to add seat: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Failed to add seat: $e"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -67,7 +78,10 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text("Enterprise Workforce Console", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Enterprise Workforce Console",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: corporateBlue,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -77,7 +91,9 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const WelcomeScreen(),
+                  ),
                   (route) => false,
                 );
               }
@@ -105,11 +121,19 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
                     children: [
                       Text(
                         "Corporate Plan: Active",
-                        style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                          color: Colors.greenAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       Text(
                         "\$499 / mo",
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ],
                   ),
@@ -121,7 +145,11 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
                   SizedBox(height: 6),
                   Text(
                     "Collective Engineering Training Hours: 142.5 hrs",
-                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -131,7 +159,11 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
             // Invite / Add Seat Section
             const Text(
               "Manage Employee Seats",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: corporateBlue),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: corporateBlue,
+              ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -142,7 +174,9 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
                     decoration: InputDecoration(
                       labelText: "Employee Email Address",
                       hintText: "engineer@company.com",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       prefixIcon: const Icon(Icons.email_outlined),
                     ),
                   ),
@@ -153,12 +187,20 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: corporateBlue,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: _isLoading ? null : _inviteEmployee,
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Assign Seat", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        : const Text(
+                            "Assign Seat",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -168,7 +210,11 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
             // Active Team Seats List
             const Text(
               "Assigned Team Members",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: corporateBlue),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: corporateBlue,
+              ),
             ),
             const SizedBox(height: 12),
             StreamBuilder<QuerySnapshot>(
@@ -182,7 +228,10 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Text("No employee seats assigned yet.", style: TextStyle(color: Colors.grey));
+                  return const Text(
+                    "No employee seats assigned yet.",
+                    style: TextStyle(color: Colors.grey),
+                  );
                 }
 
                 final docs = snapshot.data!.docs;
@@ -195,7 +244,9 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
                     final data = docs[index].data() as Map<String, dynamic>;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: ListTile(
                         leading: const CircleAvatar(
                           backgroundColor: corporateBlue,
@@ -204,7 +255,10 @@ class _EnterpriseDashboardScreenState extends State<EnterpriseDashboardScreen> {
                         title: Text(data['employeeEmail'] ?? 'Unknown'),
                         subtitle: Text("Status: ${data['status'] ?? 'Active'}"),
                         trailing: IconButton(
-                          icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                          icon: const Icon(
+                            Icons.remove_circle_outline,
+                            color: Colors.red,
+                          ),
                           onPressed: () async {
                             await docs[index].reference.delete();
                           },

@@ -23,7 +23,9 @@ class NowPaymentsSandboxService {
 
     if (apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error: NOWPayments API Key missing from environment.")),
+        const SnackBar(
+          content: Text("Error: NOWPayments API Key missing from environment."),
+        ),
       );
       return;
     }
@@ -34,10 +36,7 @@ class NowPaymentsSandboxService {
     try {
       final response = await http.post(
         url,
-        headers: {
-          'x-api-key': apiKey,
-          'Content-Type': 'application/json',
-        },
+        headers: {'x-api-key': apiKey, 'Content-Type': 'application/json'},
         body: jsonEncode({
           'price_amount': amountUSD,
           'price_currency': 'usd',
@@ -64,7 +63,9 @@ class NowPaymentsSandboxService {
         debugPrint("NOWPayments Sandbox error: ${response.body}");
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Failed to generate crypto sandbox invoice.")),
+            const SnackBar(
+              content: Text("Failed to generate crypto sandbox invoice."),
+            ),
           );
         }
       }

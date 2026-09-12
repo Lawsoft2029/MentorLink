@@ -33,7 +33,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   int _seconds = 0;
   double _totalCost = 0.0;
   Timer? _timer;
-  bool _isPaused = false; 
+  bool _isPaused = false;
 
   // --- WORKSPACE VIEW MODES ---
   bool _isCodeView = false;
@@ -49,12 +49,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   bool _isRecording = true;
   String? _localRecordingPath;
 
-  // --- AGORA VIDEO VARIABLES ---
+  // --- AGORA VIDEO & SCREEN SHARE VARIABLES ---
   late RtcEngine _engine;
   bool _isReady = false;
   int? _remoteUid;
   bool _muted = false;
-  bool _camEnabled = true;
+  bool _isScreenSharing = false; // Tracks live screen share state
 
   // --- CHAT LOGIC ---
   final TextEditingController _chatController = TextEditingController();
@@ -85,7 +85,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     if (uid == null) return;
 
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       if (userDoc.exists && mounted) {
         setState(() {
           _userTier = userDoc.data()?['userTier'] ?? 'Freemium';
@@ -137,10 +140,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           .collection('session_notes')
           .doc(widget.sessionId)
           .set({
-        'sessionId': widget.sessionId,
-        'noteContent': content,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'sessionId': widget.sessionId,
+            'noteContent': content,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
       if (mounted) {
         setState(() => _isSyncedToCloud = true);
@@ -206,7 +209,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     });
   }
 
-  // --- UNIFIED CHAT OVERLAY CONNECTED TO FIRESTORE ---
+  // --- UNIFIED CHAT OVERLAY CONNECTED TO FIRESTORE WITH TIMESTAMPS ---
   void _showChatSheet() {
     showModalBottomSheet(
       context: context,
@@ -218,6 +221,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+          final String unifiedChatRoomId = "sample_mentor_mentee_room";
 
           void sendSessionMessage() async {
             if (_chatController.text.trim().isEmpty) return;
@@ -228,15 +232,15 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               if (currentUserId != null) {
                 await FirebaseFirestore.instance
                     .collection('chat_rooms')
-                    .doc(widget.sessionId)
+                    .doc(unifiedChatRoomId)
                     .collection('messages')
                     .add({
-                  'senderId': currentUserId,
-                  'message': text,
-                  'timestamp': FieldValue.serverTimestamp(),
-                  'localTime': DateTime.now().millisecondsSinceEpoch,
-                  'status': 'sent',
-                });
+                      'senderId': currentUserId,
+                      'message': text,
+                      'timestamp': FieldValue.serverTimestamp(),
+                      'localTime': DateTime.now().millisecondsSinceEpoch,
+                      'status': 'sent',
+                    });
               }
             } catch (e) {
               debugPrint("Failed to send live chat message: $e");
@@ -276,12 +280,15 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                       stream: FirebaseFirestore.instance
                           .collection('chat_rooms')
-                          .doc(widget.sessionId)
+                          .doc(unifiedChatRoomId)
                           .collection('messages')
                           .snapshots(),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
 
                         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -308,13 +315,30 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                             final bool isMe = data['senderId'] == currentUserId;
                             final messageText = data['message'] ?? '';
 
+                            String timeString = "";
+                            if (data['localTime'] != null) {
+                              final dateTime =
+                                  DateTime.fromMillisecondsSinceEpoch(
+                                    data['localTime'],
+                                  );
+                              timeString =
+                                  "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+                            }
+
                             return Align(
-                              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                              alignment: isMe
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
                               child: Container(
                                 margin: const EdgeInsets.symmetric(vertical: 4),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isMe ? const Color(0xFF333697) : Colors.white10,
+                                  color: isMe
+                                      ? const Color(0xFF333697)
+                                      : Colors.white10,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Column(
@@ -322,12 +346,33 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                                   children: [
                                     Text(
                                       messageText,
-                                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                      ),
                                     ),
                                     const SizedBox(height: 2),
-                                    const Text(
-                                      "✓",
-                                      style: TextStyle(color: Colors.white60, fontSize: 10),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (timeString.isNotEmpty) ...[
+                                          Text(
+                                            timeString,
+                                            style: const TextStyle(
+                                              color: Colors.white60,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                        ],
+                                        const Text(
+                                          "✓",
+                                          style: TextStyle(
+                                            color: Colors.white60,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -404,15 +449,16 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               _remoteUid = remoteUid;
             });
           },
-          onUserOffline: (
-            RtcConnection connection,
-            int remoteUid,
-            UserOfflineReasonType reason,
-          ) {
-            setState(() {
-              _remoteUid = null;
-            });
-          },
+          onUserOffline:
+              (
+                RtcConnection connection,
+                int remoteUid,
+                UserOfflineReasonType reason,
+              ) {
+                setState(() {
+                  _remoteUid = null;
+                });
+              },
           onError: (ErrorCodeType err, String msg) {
             debugPrint("Agora Error: $msg");
           },
@@ -443,10 +489,75 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     }
   }
 
+  // --- SCREEN SHARE TOGGLE LOGIC ---
+  Future<void> _onToggleScreenShare() async {
+    setState(() {
+      _isScreenSharing = !_isScreenSharing;
+    });
+
+    if (!kIsWeb) {
+      try {
+        if (_isScreenSharing) {
+          // Starts broadcasting the entire screen/display to the mentor
+          await _engine.startScreenCapture(
+            const ScreenCaptureParameters2(
+              captureAudio: true,
+              audioParams: ScreenAudioParameters(
+                sampleRate: 16000,
+                channels: 2,
+                captureSignalVolume: 100,
+              ),
+              captureVideo: true,
+              videoParams: ScreenVideoParameters(
+                dimensions: VideoDimensions(width: 1280, height: 720),
+                frameRate: 15,
+                bitrate: 1000,
+              ),
+            ),
+          );
+
+          await _engine.updateChannelMediaOptions(
+            const ChannelMediaOptions(
+              publishScreenCaptureVideo: true,
+              publishScreenCaptureAudio: true,
+              publishCameraTrack: false,
+            ),
+          );
+        } else {
+          // Stops screen capture and reverts back to normal camera/code view
+          await _engine.stopScreenCapture();
+          await _engine.updateChannelMediaOptions(
+            const ChannelMediaOptions(
+              publishScreenCaptureVideo: false,
+              publishScreenCaptureAudio: false,
+              publishCameraTrack: true,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint("Screen share error: $e");
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: _isScreenSharing ? Colors.green : Colors.grey[800],
+          content: Text(
+            _isScreenSharing
+                ? "Screen share started! Your mentor can now view your whole screen."
+                : "Screen share stopped.",
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   // --- LIVE PER-MINUTE WALLET / PACKAGE DEDUCTION TIMER ---
   void _startSession() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      if (_isPaused) return; 
+      if (_isPaused) return;
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
@@ -459,9 +570,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           if (docSnapshot.exists) {
             final data = docSnapshot.data() as Map<String, dynamic>;
             String userTier = data['userTier'] ?? 'Freemium';
-            
-            double availableMinutes = userTier == 'Premium' || userTier == 'Enterprise'
-                ? (data['monthlyPackageMinutes'] ?? 0.0).toDouble() 
+
+            double availableMinutes =
+                userTier == 'Premium' || userTier == 'Enterprise'
+                ? (data['monthlyPackageMinutes'] ?? 0.0).toDouble()
                 : (data['walletMinutes'] ?? 0.0).toDouble();
 
             if (availableMinutes <= 0.0) {
@@ -475,7 +587,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             if (mounted) {
               setState(() {
                 _seconds++;
-                _totalCost += (widget.ratePerMinute / 60); 
+                _totalCost += (widget.ratePerMinute / 60);
               });
             }
           }
@@ -505,7 +617,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           children: [
             const Text(
               "Study Wallet Empty! 🛑",
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
@@ -516,7 +632,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[800], foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber[800],
+                foregroundColor: Colors.white,
+              ),
               icon: const Icon(Icons.slow_motion_video),
               label: const Text("Watch Ad & Earn +1 Hour (60 Mins)"),
               onPressed: () async {
@@ -538,7 +657,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 Navigator.pop(modalContext);
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
-              child: const Text("Return to Dashboard", style: TextStyle(color: Colors.redAccent)),
+              child: const Text(
+                "Return to Dashboard",
+                style: TextStyle(color: Colors.redAccent),
+              ),
             ),
           ],
         ),
@@ -556,7 +678,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       if (snap.exists && mounted) {
         final data = snap.data() ?? {};
         String userTier = data['userTier'] ?? 'Freemium';
-        double availableMinutes = userTier == 'Premium' || userTier == 'Enterprise'
+        double availableMinutes =
+            userTier == 'Premium' || userTier == 'Enterprise'
             ? (data['monthlyPackageMinutes'] ?? 0.0).toDouble()
             : (data['walletMinutes'] ?? 0.0).toDouble();
 
@@ -564,7 +687,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               backgroundColor: Colors.green,
-              content: Text("Ad completed successfully! +1 Hour study pass active."),
+              content: Text(
+                "Ad completed successfully! +1 Hour study pass active.",
+              ),
             ),
           );
           _startSession();
@@ -598,7 +723,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text("Confirm Exit", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Confirm Exit",
+          style: TextStyle(color: Colors.white),
+        ),
         content: const Text(
           "Do you want to end this class session? The mentor will be paid and startup revenue recorded.",
           style: TextStyle(color: Colors.white70),
@@ -614,10 +742,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               await _saveFilesLocally();
 
               double exactMinutesSpent = _seconds / 60.0;
-              if (exactMinutesSpent < (1/60) && _seconds > 0) exactMinutesSpent = 1/60;
+              if (exactMinutesSpent < (1 / 60) && _seconds > 0)
+                exactMinutesSpent = 1 / 60;
 
-              const double mentorShareRate = 0.80; 
-              const double platformShareRate = 0.20; 
+              const double mentorShareRate = 0.80;
+              const double platformShareRate = 0.20;
 
               double totalGrossCost = exactMinutesSpent * widget.ratePerMinute;
               double mentorEarnings = totalGrossCost * mentorShareRate;
@@ -630,12 +759,17 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     .get();
 
                 final sessionData = sessionDoc.data() ?? {};
-                final mentorUid = sessionData['mentorId'] ?? sessionData['mentorUid'];
-                final studentUid = sessionData['studentId'] ?? FirebaseAuth.instance.currentUser?.uid;
+                final mentorUid =
+                    sessionData['mentorId'] ?? sessionData['mentorUid'];
+                final studentUid =
+                    sessionData['studentId'] ??
+                    FirebaseAuth.instance.currentUser?.uid;
 
                 final batch = FirebaseFirestore.instance.batch();
 
-                final sessionRef = FirebaseFirestore.instance.collection('sessions').doc(widget.sessionId);
+                final sessionRef = FirebaseFirestore.instance
+                    .collection('sessions')
+                    .doc(widget.sessionId);
                 batch.set(sessionRef, {
                   'minutesSpent': exactMinutesSpent,
                   'finalCostUSD': totalGrossCost,
@@ -646,13 +780,17 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 }, SetOptions(merge: true));
 
                 if (mentorUid != null) {
-                  final mentorRef = FirebaseFirestore.instance.collection('users').doc(mentorUid);
+                  final mentorRef = FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(mentorUid);
                   batch.update(mentorRef, {
                     'mentorEarningsUSD': FieldValue.increment(mentorEarnings),
                   });
                 }
 
-                final revenueRef = FirebaseFirestore.instance.collection('platform_revenue').doc();
+                final revenueRef = FirebaseFirestore.instance
+                    .collection('platform_revenue')
+                    .doc();
                 batch.set(revenueRef, {
                   'sessionId': widget.sessionId,
                   'amountEarned': platformRevenue,
@@ -660,23 +798,33 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 });
 
                 if (studentUid != null && widget.role == 'mentee') {
-                  final studentRef = FirebaseFirestore.instance.collection('users').doc(studentUid);
+                  final studentRef = FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(studentUid);
                   final studentSnap = await studentRef.get();
                   if (studentSnap.exists) {
-                    String userTier = studentSnap.data()?['userTier'] ?? 'Freemium';
+                    String userTier =
+                        studentSnap.data()?['userTier'] ?? 'Freemium';
                     if (userTier == 'Premium' || userTier == 'Enterprise') {
                       batch.update(studentRef, {
-                        'monthlyPackageMinutes': FieldValue.increment(-exactMinutesSpent),
+                        'monthlyPackageMinutes': FieldValue.increment(
+                          -exactMinutesSpent,
+                        ),
                       });
                     } else {
                       batch.update(studentRef, {
-                        'walletMinutes': FieldValue.increment(-exactMinutesSpent),
+                        'walletMinutes': FieldValue.increment(
+                          -exactMinutesSpent,
+                        ),
                       });
                     }
                   }
                 }
 
-                if (studentUid != null && (widget.role == 'mentor' || _userTier == 'Premium' || _userTier == 'Enterprise')) {
+                if (studentUid != null &&
+                    (widget.role == 'mentor' ||
+                        _userTier == 'Premium' ||
+                        _userTier == 'Enterprise')) {
                   final recordingRef = FirebaseFirestore.instance
                       .collection('users')
                       .doc(widget.role == 'mentor' ? mentorUid : studentUid)
@@ -688,14 +836,16 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     'durationMinutes': exactMinutesSpent,
                     'recordedAt': FieldValue.serverTimestamp(),
                     'status': 'Saved',
-                    'storagePath': _localRecordingPath ?? '/MentorLinks/Recordings/${widget.sessionId}.mp4',
+                    'storagePath':
+                        _localRecordingPath ??
+                        '/MentorLinks/Recordings/${widget.sessionId}.mp4',
                   }, SetOptions(merge: true));
                 }
 
                 await batch.commit();
 
                 if (!mounted) return;
-                Navigator.pop(context); 
+                Navigator.pop(context);
                 Navigator.of(context).popUntil((route) => route.isFirst);
 
                 if (mentorUid != null && widget.role == 'mentee') {
@@ -713,7 +863,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 if (mounted) Navigator.pop(context);
               }
             },
-            child: const Text("Yes", style: TextStyle(color: Colors.greenAccent)),
+            child: const Text(
+              "Yes",
+              style: TextStyle(color: Colors.greenAccent),
+            ),
           ),
         ],
       ),
@@ -776,7 +929,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                           height: 100,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: _isReady && _camEnabled && !kIsWeb
+                            child: _isReady && !kIsWeb
                                 ? AgoraVideoView(
                                     controller: VideoViewController(
                                       rtcEngine: _engine,
@@ -786,7 +939,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                                 : Container(
                                     color: Colors.grey[800],
                                     child: const Icon(
-                                      Icons.videocam_off,
+                                      Icons.person,
                                       color: Colors.white,
                                       size: 20,
                                     ),
@@ -812,9 +965,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   // --- CLOUD & OFFLINE NOTEPAD WIDGET ---
   Widget _buildNotepadEditor() {
-    bool isAllowed = widget.role == 'mentor' || 
-                     _userTier == 'Premium' || 
-                     _userTier == 'Enterprise';
+    bool isAllowed =
+        widget.role == 'mentor' ||
+        _userTier == 'Premium' ||
+        _userTier == 'Enterprise';
 
     if (!isAllowed) {
       return Container(
@@ -832,7 +986,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             const SizedBox(height: 12),
             const Text(
               "Notepad Locked to Premium / Enterprise",
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 6),
             const Text(
@@ -866,22 +1024,32 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     SizedBox(width: 6),
                     Text(
                       "Session Cloud & Offline Notepad",
-                      style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.blueAccent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
                 Row(
                   children: [
                     Icon(
-                      _isSyncedToCloud ? Icons.cloud_done : Icons.cloud_upload_outlined,
-                      color: _isSyncedToCloud ? Colors.greenAccent : Colors.orangeAccent,
+                      _isSyncedToCloud
+                          ? Icons.cloud_done
+                          : Icons.cloud_upload_outlined,
+                      color: _isSyncedToCloud
+                          ? Colors.greenAccent
+                          : Colors.orangeAccent,
                       size: 14,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       _isSyncedToCloud ? "Synced" : "Saving...",
                       style: TextStyle(
-                        color: _isSyncedToCloud ? Colors.greenAccent : Colors.orangeAccent,
+                        color: _isSyncedToCloud
+                            ? Colors.greenAccent
+                            : Colors.orangeAccent,
                         fontSize: 10,
                       ),
                     ),
@@ -897,9 +1065,14 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               child: TextField(
                 controller: _notesController,
                 maxLines: null,
-                style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
                 decoration: const InputDecoration(
-                  hintText: "Type key class notes, algorithms, or debugging steps here... (Saves offline automatically)",
+                  hintText:
+                      "Type key class notes, algorithms, or debugging steps here... (Saves offline automatically)",
                   hintStyle: TextStyle(color: Colors.white30, fontSize: 12),
                   border: InputBorder.none,
                 ),
@@ -992,7 +1165,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               if (_isPaused)
                 Container(
                   margin: const EdgeInsets.only(right: 10),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.orange,
                     borderRadius: BorderRadius.circular(6),
@@ -1096,7 +1272,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             final recordingNow = !_isPaused;
             setState(() {
               _isPaused = !_isPaused;
-              _isRecording = recordingNow; 
+              _isRecording = recordingNow;
             });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1109,6 +1285,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               ),
             );
           },
+        ),
+        // --- NEW SCREEN SHARE BUTTON ---
+        _callAction(
+          _isScreenSharing ? Icons.screen_share : Icons.stop_screen_share,
+          _isScreenSharing ? Colors.green : Colors.white24,
+          onTap: _onToggleScreenShare,
         ),
         _callAction(
           Icons.edit_note,

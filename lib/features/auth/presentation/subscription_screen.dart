@@ -10,11 +10,15 @@ class SubscriptionScreen extends StatelessWidget {
     if (uid != null) {
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'userTier': 'Premium',
-        'walletBalanceUSD': FieldValue.increment(10.00), // Bonus starting credits
+        'walletBalanceUSD': FieldValue.increment(
+          10.00,
+        ), // Bonus starting credits
       });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Successfully upgraded to Premium Tier!")),
+          const SnackBar(
+            content: Text("Successfully upgraded to Premium Tier!"),
+          ),
         );
         Navigator.pop(context);
       }
@@ -29,7 +33,9 @@ class SubscriptionScreen extends StatelessWidget {
       });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Successfully added \$$amount to your wallet!")),
+          SnackBar(
+            content: Text("Successfully added \$$amount to your wallet!"),
+          ),
         );
       }
     }
@@ -58,11 +64,13 @@ class SubscriptionScreen extends StatelessWidget {
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
             const SizedBox(height: 30),
-            
+
             // Premium Tier Card
             Card(
               elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
@@ -71,30 +79,57 @@ class SubscriptionScreen extends StatelessWidget {
                     const Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("MentorLinks Premium", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333697))),
-                        Chip(label: Text("\$9.99 / mo", style: TextStyle(color: Colors.white)), backgroundColor: Color(0xFF333697)),
+                        Text(
+                          "MentorLinks Premium",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF333697),
+                          ),
+                        ),
+                        Chip(
+                          label: Text(
+                            "\$9.99 / mo",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          backgroundColor: Color(0xFF333697),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
-                    const Text("• Unlimited priority mentor matching\n• Zero per-minute balance deduction\n• Includes \$10 starting token credit"),
+                    const Text(
+                      "• Unlimited priority mentor matching\n• Zero per-minute balance deduction\n• Includes \$10 starting token credit",
+                    ),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () => _upgradeToPremium(context),
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF333697), minimumSize: const Size(double.infinity, 45)),
-                      child: const Text("Upgrade to Premium", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF333697),
+                        minimumSize: const Size(double.infinity, 45),
+                      ),
+                      child: const Text(
+                        "Upgrade to Premium",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 10),
-            
-            const Text("Quick Token Top-Ups", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+            const Text(
+              "Quick Token Top-Ups",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 15),
-            
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [

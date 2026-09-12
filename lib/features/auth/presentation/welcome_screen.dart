@@ -65,68 +65,75 @@ class WelcomeScreen extends StatelessWidget {
               // 4. ROLE CHOICE BUTTONS
               // MENTEE BUTTON (Solid Indigo/Navy for Students)
               // 4. ROLE CHOICE BUTTONS (Side-by-Side Compact Layout)
-Row(
-  children: [
-    // MENTEE BUTTON
-    Expanded(
-      child: SizedBox(
-        height: 55,
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const MenteeAuthScreen(),
-              ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF333697),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text(
-            "Find a Mentor",
-            style: TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-    ),
-    const SizedBox(width: 15),
+              Row(
+                children: [
+                  // MENTEE BUTTON
+                  Expanded(
+                    child: SizedBox(
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MenteeAuthScreen(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF333697),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          "Find a Mentor",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 15),
 
-    // MENTOR BUTTON
-    Expanded(
-      child: SizedBox(
-        height: 55,
-        child: OutlinedButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const MentorAuthScreen(),
+                  // MENTOR BUTTON
+                  Expanded(
+                    child: SizedBox(
+                      height: 55,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MentorAuthScreen(),
+                            ),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(
+                            color: Color(0xFF00796B),
+                            width: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          "Become a Mentor",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF00796B),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFF00796B), width: 2),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text(
-            "Become a Mentor",
-            style: TextStyle(
-              fontSize: 15,
-              color: Color(0xFF00796B),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
-    ),
-  ],
-),
 
               const SizedBox(height: 40),
               const Text(
@@ -144,7 +151,9 @@ Row(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const EnterpriseRegisterScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const EnterpriseRegisterScreen(),
+                      ),
                     );
                   },
                   child: const Text(

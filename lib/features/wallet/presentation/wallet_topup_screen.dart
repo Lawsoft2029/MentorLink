@@ -22,7 +22,8 @@ class _WalletTopUpScreenState extends State<WalletTopUpScreen> {
     // Example: FlutterwaveUIStyle().showPaymentModal(context: context, ...)
     await Future.delayed(const Duration(seconds: 2)); // Mock network call
 
-    double addedMinutes = double.parse(_amountController.text) * 10; // e.g., $1 = 10 minutes
+    double addedMinutes =
+        double.parse(_amountController.text) * 10; // e.g., $1 = 10 minutes
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid != null) {
@@ -35,7 +36,9 @@ class _WalletTopUpScreenState extends State<WalletTopUpScreen> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Fiat Top-Up Successful! Minutes added to wallet.")),
+      const SnackBar(
+        content: Text("Fiat Top-Up Successful! Minutes added to wallet."),
+      ),
     );
     Navigator.pop(context);
   }
@@ -53,7 +56,11 @@ class _WalletTopUpScreenState extends State<WalletTopUpScreen> {
         // https://api.nowpayments.io/v1/payment
         // with headers: {"x-api-key": YOUR_API_KEY}
         // body: {"price_amount": amount, "price_currency": "usd", "pay_currency": "eth"}
-        return {"payment_id": "pay_123", "pay_address": "0xMOCK_CRYPTO_VAULT_ADDRESS_9128", "pay_amount": amount};
+        return {
+          "payment_id": "pay_123",
+          "pay_address": "0xMOCK_CRYPTO_VAULT_ADDRESS_9128",
+          "pay_amount": amount,
+        };
       });
 
       setState(() => _isProcessing = false);
@@ -63,16 +70,23 @@ class _WalletTopUpScreenState extends State<WalletTopUpScreen> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text("NOWPayments Crypto Invoice"),
-          content: Text("Send exact crypto amount to address: ${response['pay_address']}"),
+          content: Text(
+            "Send exact crypto amount to address: ${response['pay_address']}",
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Done")),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Done"),
+            ),
           ],
         ),
       );
     } catch (e) {
       setState(() => _isProcessing = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -85,7 +99,10 @@ class _WalletTopUpScreenState extends State<WalletTopUpScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Enter Amount (USD)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              "Enter Amount (USD)",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 10),
             TextField(
               controller: _amountController,
@@ -100,7 +117,10 @@ class _WalletTopUpScreenState extends State<WalletTopUpScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                ),
                 icon: const Icon(Icons.credit_card),
                 label: const Text("Pay with Flutterwave (Card/Bank)"),
                 onPressed: _isProcessing ? null : _processFlutterwavePayment,
@@ -110,7 +130,10 @@ class _WalletTopUpScreenState extends State<WalletTopUpScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
                 icon: const Icon(Icons.currency_bitcoin),
                 label: const Text("Pay with NOWPayments (Crypto)"),
                 onPressed: _isProcessing ? null : _processCryptoPayment,
@@ -119,7 +142,7 @@ class _WalletTopUpScreenState extends State<WalletTopUpScreen> {
             if (_isProcessing) ...[
               const SizedBox(height: 20),
               const Center(child: CircularProgressIndicator()),
-            ]
+            ],
           ],
         ),
       ),

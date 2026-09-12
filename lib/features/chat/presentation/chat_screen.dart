@@ -39,12 +39,12 @@ class _ChatScreenState extends State<ChatScreen> {
           .doc(widget.chatRoomId)
           .collection('messages')
           .add({
-        'senderId': currentUserId,
-        'message': messageText,
-        'timestamp': FieldValue.serverTimestamp(),
-        'localTime': DateTime.now().millisecondsSinceEpoch,
-        'status': 'sent',
-      });
+            'senderId': currentUserId,
+            'message': messageText,
+            'timestamp': FieldValue.serverTimestamp(),
+            'localTime': DateTime.now().millisecondsSinceEpoch,
+            'status': 'sent',
+          });
 
       // Scroll down smoothly
       if (_scrollController.hasClients) {
@@ -57,7 +57,10 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to send message: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Failed to send message: $e"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -84,7 +87,10 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 Text(
                   widget.receiverName,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Row(
                   children: [
@@ -148,26 +154,36 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final data = docs[index].data();
                     final bool isMe = data['senderId'] == currentUserId;
-                    
+
                     String timeString = "";
                     if (data['localTime'] != null) {
-                      final dateTime = DateTime.fromMillisecondsSinceEpoch(data['localTime']);
-                      timeString = "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+                      final dateTime = DateTime.fromMillisecondsSinceEpoch(
+                        data['localTime'],
+                      );
+                      timeString =
+                          "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
                     }
 
                     final String status = data['status'] ?? 'sent';
                     final String ticks = status == 'read' ? '✓✓' : '✓';
 
                     return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment: isMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Container(
                         constraints: BoxConstraints(
                           maxWidth: MediaQuery.of(context).size.width * 0.75,
                         ),
                         margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
-                          color: isMe ? const Color(0xFF333697) : Colors.grey.shade200,
+                          color: isMe
+                              ? const Color(0xFF333697)
+                              : Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
@@ -187,7 +203,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                 Text(
                                   timeString,
                                   style: TextStyle(
-                                    color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                    color: isMe
+                                        ? Colors.white70
+                                        : Colors.grey.shade600,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -196,7 +214,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                   Text(
                                     ticks,
                                     style: TextStyle(
-                                      color: status == 'read' ? Colors.lightBlueAccent : Colors.white70,
+                                      color: status == 'read'
+                                          ? Colors.lightBlueAccent
+                                          : Colors.white70,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -227,7 +247,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       hintText: "Type a message...",
                       filled: true,
                       fillColor: Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide.none,

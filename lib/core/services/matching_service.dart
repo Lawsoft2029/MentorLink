@@ -4,7 +4,9 @@ class MatchingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Fetches mentors matching a specific skill or track (e.g., "Flutter")
-  Stream<QuerySnapshot<Map<String, dynamic>>> getMatchedMentors(String selectedSkill) {
+  Stream<QuerySnapshot<Map<String, dynamic>>> getMatchedMentors(
+    String selectedSkill,
+  ) {
     return _firestore
         .collection('users')
         .where('role', isEqualTo: 'mentor')

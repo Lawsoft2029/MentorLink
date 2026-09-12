@@ -110,9 +110,9 @@ class HomeScreenContent extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: uid != null
             ? FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .snapshots()
+                  .collection('users')
+                  .doc(uid)
+                  .snapshots()
             : null,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

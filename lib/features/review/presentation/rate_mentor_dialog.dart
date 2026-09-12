@@ -36,14 +36,16 @@ class _RateMentorDialogState extends State<RateMentorDialog> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Thank you! Review submitted successfully.")),
+          const SnackBar(
+            content: Text("Thank you! Review submitted successfully."),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error submitting review: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error submitting review: $e")));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -64,7 +66,8 @@ class _RateMentorDialogState extends State<RateMentorDialog> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (index) {
                 return IconButton(
-                  onPressed: () => setState(() => _currentRating = (index + 1).toDouble()),
+                  onPressed: () =>
+                      setState(() => _currentRating = (index + 1).toDouble()),
                   icon: Icon(
                     index < _currentRating ? Icons.star : Icons.star_border,
                     color: Colors.amber,
@@ -92,9 +95,18 @@ class _RateMentorDialogState extends State<RateMentorDialog> {
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submit,
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF333697)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF333697),
+          ),
           child: _isLoading
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
               : const Text("Submit", style: TextStyle(color: Colors.white)),
         ),
       ],

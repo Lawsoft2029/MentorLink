@@ -6,7 +6,8 @@ class MenteeSubscriptionScreen extends StatefulWidget {
   const MenteeSubscriptionScreen({super.key});
 
   @override
-  State<MenteeSubscriptionScreen> createState() => _MenteeSubscriptionScreenState();
+  State<MenteeSubscriptionScreen> createState() =>
+      _MenteeSubscriptionScreenState();
 }
 
 class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
@@ -28,7 +29,10 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
         _expiryController.text.trim().isEmpty ||
         _cvvController.text.trim().length < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter valid card details."), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text("Please enter valid card details."),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -61,7 +65,10 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Payment failed: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Payment failed: $e"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -76,7 +83,10 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Upgrade to Pro Academy", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Upgrade to Pro Academy",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: primaryIndigo,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -103,17 +113,29 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
                   SizedBox(height: 12),
                   Text(
                     "MentorLinks Pro Plan",
-                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   SizedBox(height: 6),
                   Text(
                     "Ad-free learning, priority mentor queue matching, unlimited code canvas whiteboarding, and verifiable offline completion certificates.",
-                    style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
                   ),
                   SizedBox(height: 16),
                   Text(
                     "\$9.99 / month (~₦15,000 local equivalent)",
-                    style: TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -122,7 +144,11 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
 
             const Text(
               "Secure Card Payment (Flutterwave Gateway)",
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: primaryIndigo),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: primaryIndigo,
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -134,7 +160,9 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
                 labelText: "Card Number",
                 hintText: "4234 5678 9012 3456",
                 prefixIcon: const Icon(Icons.credit_card),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -150,7 +178,9 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
                       labelText: "Expiry Date",
                       hintText: "MM/YY",
                       prefixIcon: const Icon(Icons.calendar_today),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -164,7 +194,9 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
                       labelText: "CVV",
                       hintText: "123",
                       prefixIcon: const Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -179,14 +211,20 @@ class _MenteeSubscriptionScreenState extends State<MenteeSubscriptionScreen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryIndigo,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _isProcessing ? null : _processCardPayment,
                 child: _isProcessing
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
                         "Pay \$9.99 & Activate Pro",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
               ),
             ),

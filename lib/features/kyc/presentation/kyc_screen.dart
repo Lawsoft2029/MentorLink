@@ -12,7 +12,7 @@ class _KybScreenState extends State<KybScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _businessNameController = TextEditingController();
   final TextEditingController _regNumberController = TextEditingController();
-  
+
   String _selectedCountryCode = 'NG'; // Default to Nigeria (Local CAC)
   bool _isLoading = false;
 
@@ -36,7 +36,7 @@ class _KybScreenState extends State<KybScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        
+
         Navigator.pushReplacementNamed(context, '/dashboard');
       }
     } catch (e) {
@@ -65,9 +65,7 @@ class _KybScreenState extends State<KybScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Business Verification (KYB)'),
-      ),
+      appBar: AppBar(title: const Text('Business Verification (KYB)')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -88,9 +86,18 @@ class _KybScreenState extends State<KybScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'NG', child: Text('Nigeria (Local - CAC)')),
-                  DropdownMenuItem(value: 'US', child: Text('United States (Global - EIN)')),
-                  DropdownMenuItem(value: 'UK', child: Text('United Kingdom (Global - Companies House)')),
+                  DropdownMenuItem(
+                    value: 'NG',
+                    child: Text('Nigeria (Local - CAC)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'US',
+                    child: Text('United States (Global - EIN)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'UK',
+                    child: Text('United Kingdom (Global - Companies House)'),
+                  ),
                 ],
                 onChanged: (value) {
                   setState(() {

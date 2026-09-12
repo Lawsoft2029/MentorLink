@@ -12,7 +12,8 @@ class ReviewService {
     required String comment,
   }) async {
     final String menteeId = _auth.currentUser!.uid;
-    final String menteeEmail = _auth.currentUser!.email ?? "mentee@mentorlinks.com";
+    final String menteeEmail =
+        _auth.currentUser!.email ?? "mentee@mentorlinks.com";
 
     // Save the review document
     await _firestore.collection('reviews').add({
@@ -29,7 +30,9 @@ class ReviewService {
   }
 
   /// Stream reviews for a specific mentor
-  Stream<QuerySnapshot<Map<String, dynamic>>> getMentorReviews(String mentorId) {
+  Stream<QuerySnapshot<Map<String, dynamic>>> getMentorReviews(
+    String mentorId,
+  ) {
     return _firestore
         .collection('reviews')
         .where('mentorId', isEqualTo: mentorId)

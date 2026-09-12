@@ -40,7 +40,10 @@ class _AdPassUnlockScreenState extends State<AdPassUnlockScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error updating credits: $e"), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text("Error updating credits: $e"),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -74,7 +77,11 @@ class _AdPassUnlockScreenState extends State<AdPassUnlockScreen> {
                 color: primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.ondemand_video_rounded, size: 64, color: primaryColor),
+              child: const Icon(
+                Icons.ondemand_video_rounded,
+                size: 64,
+                color: primaryColor,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -85,7 +92,11 @@ class _AdPassUnlockScreenState extends State<AdPassUnlockScreen> {
             const SizedBox(height: 12),
             const Text(
               "Support free technical education. Watch a short rewarded video ad to instantly credit 1 hour of ad-free classroom teaching time to your account.",
-              style: TextStyle(color: Colors.blueGrey, fontSize: 14, height: 1.4),
+              style: TextStyle(
+                color: Colors.blueGrey,
+                fontSize: 14,
+                height: 1.4,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 40),
@@ -95,18 +106,27 @@ class _AdPassUnlockScreenState extends State<AdPassUnlockScreen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 onPressed: _isLoading ? null : _simulateAdAndUnlockHour,
                 child: _isLoading
                     ? const SizedBox(
                         height: 24,
                         width: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
                       )
                     : const Text(
                         "Watch Ad & Unlock 1 Hour",
-                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             ),

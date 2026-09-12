@@ -18,7 +18,7 @@ class BookSessionScreen extends StatefulWidget {
 class _BookSessionScreenState extends State<BookSessionScreen> {
   final SchedulingService _schedulingService = SchedulingService();
   final TextEditingController _topicController = TextEditingController();
-  
+
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _isLoading = false;
@@ -46,9 +46,13 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
   }
 
   void _confirmBooking() async {
-    if (_topicController.text.trim().isEmpty || _selectedDate == null || _selectedTime == null) {
+    if (_topicController.text.trim().isEmpty ||
+        _selectedDate == null ||
+        _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill in all session details, date, and time.")),
+        const SnackBar(
+          content: Text("Please fill in all session details, date, and time."),
+        ),
       );
       return;
     }
@@ -72,9 +76,9 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Booking failed: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Booking failed: $e")));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -109,10 +113,15 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
                 side: BorderSide(color: Colors.grey.shade400),
                 borderRadius: BorderRadius.circular(8),
               ),
-              title: Text(_selectedDate == null
-                  ? "Select Date"
-                  : "Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}"),
-              trailing: const Icon(Icons.calendar_today, color: Color(0xFF333697)),
+              title: Text(
+                _selectedDate == null
+                    ? "Select Date"
+                    : "Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}",
+              ),
+              trailing: const Icon(
+                Icons.calendar_today,
+                color: Color(0xFF333697),
+              ),
               onTap: _pickDate,
             ),
             const SizedBox(height: 16),
@@ -121,9 +130,11 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
                 side: BorderSide(color: Colors.grey.shade400),
                 borderRadius: BorderRadius.circular(8),
               ),
-              title: Text(_selectedTime == null
-                  ? "Select Time"
-                  : "Time: ${_selectedTime!.format(context)}"),
+              title: Text(
+                _selectedTime == null
+                    ? "Select Time"
+                    : "Time: ${_selectedTime!.format(context)}",
+              ),
               trailing: const Icon(Icons.access_time, color: Color(0xFF333697)),
               onTap: _pickTime,
             ),

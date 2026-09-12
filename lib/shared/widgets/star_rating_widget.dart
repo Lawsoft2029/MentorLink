@@ -37,12 +37,18 @@ class StarRatingWidget extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           rating.toStringAsFixed(1),
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: starSize * 0.9),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: starSize * 0.9,
+          ),
         ),
         const SizedBox(width: 4),
         Text(
           "($reviewCount)",
-          style: TextStyle(color: Colors.grey.shade600, fontSize: starSize * 0.8),
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: starSize * 0.8,
+          ),
         ),
       ],
     );

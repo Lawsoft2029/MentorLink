@@ -12,14 +12,20 @@ class WalletScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
       appBar: AppBar(
-        title: const Text("Learning Wallet", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Learning Wallet",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
       // Wrapped body with StreamBuilder to pull live operational telemetry from Firestore
       body: StreamBuilder<DocumentSnapshot>(
         stream: uid != null
-            ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
+            ? FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .snapshots()
             : null,
         builder: (context, snapshot) {
           double activeBalance = 0.00;
@@ -41,7 +47,10 @@ class WalletScreen extends StatelessWidget {
                 // 2. FUNDING OPTIONS (For the Learner to add money)
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: Text("Top up Balance", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "Top up Balance",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 15),
                 Row(
@@ -58,12 +67,30 @@ class WalletScreen extends StatelessWidget {
                 // 3. SPENDING LOG (Where the learner's money went)
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: Text("Learning Expenses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "Learning Expenses",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 15),
-                _historyItem("Session: Flutter Debugging", "-\$0.45", "10 mins ago", Colors.redAccent),
-                _historyItem("Session: IoT Hardware Setup", "-\$1.20", "Today, 10:00 AM", Colors.redAccent),
-                _historyItem("Simulated Ad Reward", "+\$0.05", "Real-time Tracker", Colors.green),
+                _historyItem(
+                  "Session: Flutter Debugging",
+                  "-\$0.45",
+                  "10 mins ago",
+                  Colors.redAccent,
+                ),
+                _historyItem(
+                  "Session: IoT Hardware Setup",
+                  "-\$1.20",
+                  "Today, 10:00 AM",
+                  Colors.redAccent,
+                ),
+                _historyItem(
+                  "Simulated Ad Reward",
+                  "+\$0.05",
+                  "Real-time Tracker",
+                  Colors.green,
+                ),
               ],
             ),
           );
@@ -81,17 +108,29 @@ class WalletScreen extends StatelessWidget {
         color: const Color(0xFF333697),
         borderRadius: BorderRadius.circular(25),
         image: const DecorationImage(
-          image: NetworkImage('https://www.transparenttextures.com/patterns/cubes.png'), // Subtle professional texture
+          image: NetworkImage(
+            'https://www.transparenttextures.com/patterns/cubes.png',
+          ), // Subtle professional texture
           opacity: 0.1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Current Balance", style: TextStyle(color: Colors.white70, fontSize: 16)),
+          const Text(
+            "Current Balance",
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
           const SizedBox(height: 8),
           // Outputs real-time matching currency matching home tab logic
-          Text("\$${balance.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+          Text(
+            "\$${balance.toStringAsFixed(2)}",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 25),
           Row(
             children: [
@@ -99,7 +138,7 @@ class WalletScreen extends StatelessWidget {
               const SizedBox(width: 15),
               _actionBtn(Icons.history, "Statements"),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -110,14 +149,20 @@ class WalletScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
       decoration: BoxDecoration(
         // ignore: deprecated_member_use
-        color: Colors.white.withOpacity(0.2), 
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
           Icon(icon, color: Colors.white, size: 18),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -135,7 +180,13 @@ class WalletScreen extends StatelessWidget {
           border: Border.all(color: const Color(0xFF333697).withOpacity(0.2)),
         ),
         child: Center(
-          child: Text(amount, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333697))),
+          child: Text(
+            amount,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF333697),
+            ),
+          ),
         ),
       ),
     );
@@ -149,7 +200,14 @@ class WalletScreen extends StatelessWidget {
       child: ListTile(
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(time),
-        trailing: Text(amount, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+        trailing: Text(
+          amount,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
       ),
     );
   }

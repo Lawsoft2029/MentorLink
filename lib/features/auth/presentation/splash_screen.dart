@@ -13,7 +13,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
 
@@ -47,7 +48,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     } else {
       // Logged in -> Fetch role from Firestore to route to correct dashboard
       try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
         if (doc.exists) {
           final data = doc.data() as Map<String, dynamic>;
           final role = data['role'] ?? 'mentee';
@@ -63,7 +67,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             // Default to Mentee Discovery / Dashboard
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const MenteeDiscoveryScreen()),
+              MaterialPageRoute(
+                builder: (context) => const MenteeDiscoveryScreen(),
+              ),
             );
           }
         } else {

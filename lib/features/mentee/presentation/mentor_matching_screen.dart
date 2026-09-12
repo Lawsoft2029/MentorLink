@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/matching_service.dart';
+import '../../chat/presentation/chat_discussion_screen.dart';
 
 class MentorMatchingScreen extends StatefulWidget {
   final String menteeSkillInterest; // e.g., "Flutter"
@@ -14,43 +15,55 @@ class MentorMatchingScreen extends StatefulWidget {
 class _MentorMatchingScreenState extends State<MentorMatchingScreen> {
   final MatchingService _matchingService = MatchingService();
 
-  void _handleConnectRequest(BuildContext context, String mentorName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Connection request sent to $mentorName!'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    const primaryColor = Color(0xFF333697);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text("Matched Experts for ${widget.menteeSkillInterest}"),
-        backgroundColor: const Color(0xFF333697),
+        title: Text("Matched Mentors: ${widget.menteeSkillInterest}"),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _matchingService.getMatchedMentors(widget.menteeSkillInterest),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: primaryColor),
+            );
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          final mentors = snapshot.data?.docs ?? [];
+
+          if (mentors.isEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.person_search, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
+                  children: [
+                    const Icon(
+                      Icons.person_search,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
                     Text(
-                      "No direct mentor matches found for this skill yet. Try exploring our general mentor directory below.",
+                      "No direct mentors found with tag '${widget.menteeSkillInterest}'.",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Explore All Mentors",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
@@ -58,14 +71,15 @@ class _MentorMatchingScreenState extends State<MentorMatchingScreen> {
             );
           }
 
-          final mentors = snapshot.data!.docs;
-
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: mentors.length,
             itemBuilder: (context, index) {
-              final mentor = mentors[index].data();
-              final mentorName = mentor['fullName'] ?? 'Expert Mentor';
+              final doc = mentors[index];
+              final mentor = doc.data();
+              final mentorId = doc.id;
+              final mentorName =
+                  mentor['name'] ?? mentor['fullName'] ?? 'Expert Mentor';
               final mentorBio = mentor['bio'] ?? 'Senior Software Professional';
               final hourlyRate = mentor['hourlyRate'] ?? '50';
 
@@ -81,8 +95,12 @@ class _MentorMatchingScreenState extends State<MentorMatchingScreen> {
                     children: [
                       const CircleAvatar(
                         radius: 30,
-                        backgroundColor: Color(0xFF333697),
-                        child: Icon(Icons.person, color: Colors.white, size: 30),
+                        backgroundColor: primaryColor,
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 30,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -92,9 +110,9 @@ class _MentorMatchingScreenState extends State<MentorMatchingScreen> {
                             Text(
                               mentorName,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF333697),
+                                color: primaryColor,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -102,13 +120,16 @@ class _MentorMatchingScreenState extends State<MentorMatchingScreen> {
                               mentorBio,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[700],
+                              ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
                               "\$$hourlyRate / hr",
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF00796B),
                               ),
@@ -116,15 +137,35 @@ class _MentorMatchingScreenState extends State<MentorMatchingScreen> {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () => _handleConnectRequest(context, mentorName),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          // Connects directly to Chat Discussion
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatDiscussionScreen(
+                                recipientId: mentorId,
+                                recipientName: mentorName,
+                                courseTitle: widget.menteeSkillInterest,
+                              ),
+                            ),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF333697),
+                          backgroundColor: primaryColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: const Text("Connect", style: TextStyle(color: Colors.white)),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        label: const Text(
+                          "Discuss",
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ],
                   ),

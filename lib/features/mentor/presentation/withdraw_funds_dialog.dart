@@ -7,10 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class WithdrawFundsDialog extends StatefulWidget {
   final double currentBalance;
 
-  const WithdrawFundsDialog({
-    super.key,
-    required this.currentBalance,
-  });
+  const WithdrawFundsDialog({super.key, required this.currentBalance});
 
   @override
   State<WithdrawFundsDialog> createState() => _WithdrawFundsDialogState();
@@ -19,13 +16,15 @@ class WithdrawFundsDialog extends StatefulWidget {
 class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
   String _selectedMethod = 'flutterwave'; // 'flutterwave' or 'nowpayments'
   final TextEditingController _amountController = TextEditingController();
-  
+
   // Bank fields (Flutterwave)
   final TextEditingController _bankNameController = TextEditingController();
-  final TextEditingController _accountNumberController = TextEditingController();
+  final TextEditingController _accountNumberController =
+      TextEditingController();
 
   // Crypto fields (NOWPayments)
-  final TextEditingController _cryptoAddressController = TextEditingController();
+  final TextEditingController _cryptoAddressController =
+      TextEditingController();
   String _selectedCrypto = 'USDT-TRC20'; // Default crypto currency
 
   bool _isSubmitting = false;
@@ -53,14 +52,23 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
     }
 
     if (requestedAmount > widget.currentBalance) {
-      _showToast("Amount exceeds your available balance (\$" + widget.currentBalance.toStringAsFixed(2) + ").", Colors.red);
+      _showToast(
+        "Amount exceeds your available balance (\$" +
+            widget.currentBalance.toStringAsFixed(2) +
+            ").",
+        Colors.red,
+      );
       return;
     }
 
     // Validate method inputs
     if (_selectedMethod == 'flutterwave') {
-      if (_bankNameController.text.trim().isEmpty || _accountNumberController.text.trim().isEmpty) {
-        _showToast("Please fill in both Bank Name and Account Number.", Colors.red);
+      if (_bankNameController.text.trim().isEmpty ||
+          _accountNumberController.text.trim().isEmpty) {
+        _showToast(
+          "Please fill in both Bank Name and Account Number.",
+          Colors.red,
+        );
         return;
       }
     } else {
@@ -83,7 +91,8 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
         final snapshot = await transaction.get(userRef);
         if (!snapshot.exists) throw Exception("Mentor record not found.");
 
-        double currentBalance = (snapshot.data()?['mentorEarningsUSD'] ?? 0.0).toDouble();
+        double currentBalance = (snapshot.data()?['mentorEarningsUSD'] ?? 0.0)
+            .toDouble();
 
         if (requestedAmount > currentBalance) {
           throw Exception("Insufficient balance.");
@@ -126,9 +135,9 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
   }
 
   void _showToast(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   @override
@@ -140,11 +149,18 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Withdraw Funds", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          const Text(
+            "Withdraw Funds",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
           const SizedBox(height: 4),
           Text(
             "Available Balance: \$${widget.currentBalance.toStringAsFixed(2)}",
-            style: const TextStyle(fontSize: 13, color: primaryTeal, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 13,
+              color: primaryTeal,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -153,7 +169,14 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Select Gateway", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const Text(
+              "Select Gateway",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
             const SizedBox(height: 8),
 
             // Gateway Selection Buttons
@@ -161,22 +184,32 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
               children: [
                 Expanded(
                   child: ChoiceChip(
-                    label: const Text("Flutterwave", style: TextStyle(fontSize: 11)),
+                    label: const Text(
+                      "Flutterwave",
+                      style: TextStyle(fontSize: 11),
+                    ),
                     selected: _selectedMethod == 'flutterwave',
                     selectedColor: primaryTeal.withValues(alpha: 0.2),
                     onSelected: (selected) {
-                      if (selected) setState(() => _selectedMethod = 'flutterwave');
+                      if (selected) {
+                        setState(() => _selectedMethod = 'flutterwave');
+                      }
                     },
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ChoiceChip(
-                    label: const Text("NOWPayments", style: TextStyle(fontSize: 11)),
+                    label: const Text(
+                      "NOWPayments",
+                      style: TextStyle(fontSize: 11),
+                    ),
                     selected: _selectedMethod == 'nowpayments',
                     selectedColor: primaryTeal.withValues(alpha: 0.2),
                     onSelected: (selected) {
-                      if (selected) setState(() => _selectedMethod = 'nowpayments');
+                      if (selected) {
+                        setState(() => _selectedMethod = 'nowpayments');
+                      }
                     },
                   ),
                 ),
@@ -187,26 +220,35 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
             // Amount Input
             TextField(
               controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: InputDecoration(
                 labelText: "Amount (USD)",
                 hintText: "e.g. 50.00",
                 prefixIcon: const Icon(Icons.attach_money, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
             const SizedBox(height: 16),
 
             // Dynamic Form based on Gateway
             if (_selectedMethod == 'flutterwave') ...[
-              const Text("Local Bank Account Details", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text(
+                "Local Bank Account Details",
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _bankNameController,
                 decoration: InputDecoration(
                   labelText: "Bank Name",
                   hintText: "e.g. Access Bank, GTBank, Kuda",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -215,20 +257,30 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: "Account Number",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ] else ...[
-              const Text("Cryptocurrency Wallet Details", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text(
+                "Cryptocurrency Wallet Details",
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _selectedCrypto,
                 decoration: InputDecoration(
                   labelText: "Select Crypto",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'USDT-TRC20', child: Text('USDT (TRC-20)')),
+                  DropdownMenuItem(
+                    value: 'USDT-TRC20',
+                    child: Text('USDT (TRC-20)'),
+                  ),
                   DropdownMenuItem(value: 'BTC', child: Text('Bitcoin (BTC)')),
                   DropdownMenuItem(value: 'ETH', child: Text('Ethereum (ETH)')),
                 ],
@@ -240,7 +292,9 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
                 decoration: InputDecoration(
                   labelText: "Wallet Address",
                   hintText: "Paste recipient address...",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],
@@ -255,12 +309,27 @@ class _WithdrawFundsDialogState extends State<WithdrawFundsDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryTeal,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           onPressed: _isSubmitting ? null : _submitWithdrawal,
           child: _isSubmitting
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text("Confirm Payout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  "Confirm Payout",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ),
       ],
     );

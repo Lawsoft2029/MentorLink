@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mentorlinks_app_project/features/auth/presentation/interests_screen.dart';
+import 'package:mentorlinks_app_project/features/mentee/presentation/course_selection_screen.dart';
+import 'package:mentorlinks_app_project/features/mentee/presentation/mentee_learning_hub_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter/foundation.dart'
@@ -23,6 +24,45 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+
+  Future<void> _navigateAfterAuth(String uid) async {
+    if (!mounted) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final data = doc.data() ?? {};
+      final List enrolled = data['enrolledCourses'] ?? [];
+
+      if (mounted) {
+        if (enrolled.isNotEmpty) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const MenteeLearningHubScreen(),
+            ),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CourseSelectionScreen(),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CourseSelectionScreen(),
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
@@ -49,28 +89,19 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
 
       // Save mentee profile to Firestore
       print("5. saving user profile to Firestore...");
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-            'uid': userCredential.user!.uid,
-            'name': userCredential.user!.displayName ?? 'Mentee',
-            'email': userCredential.user!.email ?? '',
-            'role': 'mentee',
-            'walletMinutes': 10.0,
-            'createdAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-          print("6. User profile saved to Firestore successfully.");
+      final uid = userCredential.user!.uid;
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'uid': uid,
+        'name': userCredential.user!.displayName ?? 'Mentee',
+        'email': userCredential.user!.email ?? '',
+        'role': 'mentee',
+        'accountType': 'mentee',
+        'walletMinutes': 10.0,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      print("6. User profile saved to Firestore successfully.");
 
-      if (mounted) {
-        print("7. Navigating to CourseSelectionScreen...");
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CourseSelectionScreen(),
-          ),
-        );
-      }
+      await _navigateAfterAuth(uid);
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -99,26 +130,18 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithCredential(credential);
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-            'uid': userCredential.user!.uid,
-            'name': appleCredential.givenName ?? 'Mentee',
-            'email': userCredential.user!.email ?? '',
-            'role': 'mentee',
-            'walletMinutes': 10.0,
-            'createdAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      final uid = userCredential.user!.uid;
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'uid': uid,
+        'name': appleCredential.givenName ?? 'Mentee',
+        'email': userCredential.user!.email ?? '',
+        'role': 'mentee',
+        'accountType': 'mentee',
+        'walletMinutes': 10.0,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CourseSelectionScreen(),
-          ),
-        );
-      }
+      await _navigateAfterAuth(uid);
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -149,10 +172,16 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
 
     try {
       if (isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
+        final credential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            );
+        final uid = credential.user?.uid;
+        if (uid != null) {
+          await _navigateAfterAuth(uid);
+          return;
+        }
       } else {
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(
@@ -172,10 +201,10 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
             'name': _nameController.text.trim(),
             'email': _emailController.text.trim(),
             'role': 'mentee',
+            'accountType': 'mentee',
             'userTier': 'Freemium',
             'isPremium': false,
-            'walletMinutes':
-                0.0, // Tracks ad-earned minutes for per-minute class sessions
+            'walletMinutes': 0.0,
             'walletBalanceUSD': 0.0,
             'mentorEarningsUSD': 0.0,
             'connectionRatePerMin': 0.10,
@@ -183,16 +212,10 @@ class _MenteeAuthScreenState extends State<MenteeAuthScreen> {
             'courseTimelines': {},
             'createdAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
-        }
-      }
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CourseSelectionScreen(),
-          ),
-        );
+          await _navigateAfterAuth(uid);
+          return;
+        }
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {

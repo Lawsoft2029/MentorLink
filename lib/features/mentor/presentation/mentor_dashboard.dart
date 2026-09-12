@@ -60,7 +60,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
     _incomingCallSubscription = FirebaseFirestore.instance
         .collection('sessions')
         .where('mentorId', isEqualTo: mentorId)
-        .where('status', isEqualTo: 'pending')
+        .where('status', whereIn: ['pending', 'live'])
         .snapshots()
         .listen((snapshot) {
           if (snapshot.docs.isNotEmpty &&
@@ -598,7 +598,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
                           stream: FirebaseFirestore.instance
                               .collection('sessions')
                               .where('mentorId', isEqualTo: uid)
-                              .where('status', isEqualTo: 'pending')
+                              .where('status', whereIn: ['pending', 'live'])
                               .snapshots(),
                           builder: (context, requestSnapshot) {
                             if (requestSnapshot.connectionState ==

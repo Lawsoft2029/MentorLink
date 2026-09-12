@@ -29,7 +29,9 @@ class NotificationService {
   /// Listen to foreground messages
   void listenToForegroundMessages() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('Received a foreground message: ${message.notification?.title}');
+      debugPrint(
+        'Received a foreground message: ${message.notification?.title}',
+      );
     });
   }
 }

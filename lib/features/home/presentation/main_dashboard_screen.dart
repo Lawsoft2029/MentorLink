@@ -42,7 +42,9 @@ class MainDashboardScreen extends StatelessWidget {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
                 // Pops all routes and returns to root/auth screen (adjust route name if needed)
-                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/', (route) => false);
               }
             },
           ),

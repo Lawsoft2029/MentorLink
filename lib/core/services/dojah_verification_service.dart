@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class DojahVerificationService {
-  final String _baseUrl = 'https://sandbox.dojah.io/api/v1'; // Change to api.dojah.io for live production
+  final String _baseUrl =
+      'https://sandbox.dojah.io/api/v1'; // Change to api.dojah.io for live production
 
   /// Verifies a business registration number (e.g., CAC in Nigeria) using Dojah API
   Future<Map<String, dynamic>> verifyBusinessRegistration({
@@ -15,7 +16,9 @@ class DojahVerificationService {
 
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/kyb/cac?rc_number=$registrationNumber&company_name=$companyName'),
+        Uri.parse(
+          '$_baseUrl/kyb/cac?rc_number=$registrationNumber&company_name=$companyName',
+        ),
         headers: {
           'Authorization': apiKey,
           'AppId': appId,
@@ -25,14 +28,12 @@ class DojahVerificationService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data['entity'] ?? data,
-        };
+        return {'success': true, 'data': data['entity'] ?? data};
       } else {
         return {
           'success': false,
-          'message': 'Verification failed with status code ${response.statusCode}',
+          'message':
+              'Verification failed with status code ${response.statusCode}',
         };
       }
     } catch (e) {

@@ -11,7 +11,8 @@ class VirtualClassroomScreen extends StatefulWidget {
   final String participantName;
   final String sessionId;
   final String role; // 'mentee' or 'mentor'
-  final double ratePerMinute = 0.10; // $0.10 or 1 minute of wallet per real minute
+  final double ratePerMinute =
+      0.10; // $0.10 or 1 minute of wallet per real minute
 
   const VirtualClassroomScreen({
     super.key,
@@ -50,11 +51,15 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
 
     if (widget.role == 'mentee') {
       try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
         if (doc.exists && mounted) {
           final data = doc.data() as Map<String, dynamic>;
           double walletMinutes = (data['walletMinutes'] ?? 0.0).toDouble();
-          double walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+          double walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0)
+              .toDouble();
 
           if (walletMinutes <= 0.0 && walletBalanceUSD < widget.ratePerMinute) {
             _showStudyWalletEmptyModal(context);
@@ -86,10 +91,12 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
           if (docSnapshot.exists) {
             final data = docSnapshot.data() as Map<String, dynamic>;
             double walletMinutes = (data['walletMinutes'] ?? 0.0).toDouble();
-            double walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0).toDouble();
+            double walletBalanceUSD = (data['walletBalanceUSD'] ?? 0.0)
+                .toDouble();
 
             // Prompt ad unlock if wallet hits zero instead of auto-closing session
-            if (walletMinutes <= 0.0 && walletBalanceUSD < widget.ratePerMinute) {
+            if (walletMinutes <= 0.0 &&
+                walletBalanceUSD < widget.ratePerMinute) {
               _timer?.cancel();
               if (mounted) {
                 _showStudyWalletEmptyModal(context);
@@ -181,7 +188,11 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
             const SizedBox(height: 10),
             const Text(
               "You don't have enough balance to start or continue this live class session. Watch a short sponsored ad to unlock 1 hour of study time (+60 mins) and \$1.00 credit!",
-              style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                height: 1.4,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -195,7 +206,11 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
                 ),
                 elevation: 4,
               ),
-              icon: const Icon(Icons.play_circle_fill, color: Colors.amberAccent, size: 24),
+              icon: const Icon(
+                Icons.play_circle_fill,
+                color: Colors.amberAccent,
+                size: 24,
+              ),
               label: const Text(
                 "Watch Ad & Unlock Class (+60 Mins)",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -239,7 +254,10 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
     if (uid == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       if (doc.exists && mounted) {
         final data = doc.data() as Map<String, dynamic>;
         double walletMinutes = (data['walletMinutes'] ?? 0.0).toDouble();
@@ -249,7 +267,9 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               backgroundColor: Colors.green,
-              content: Text("Study pass active! Starting live class session..."),
+              content: Text(
+                "Study pass active! Starting live class session...",
+              ),
             ),
           );
           setState(() {
@@ -303,7 +323,8 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
                     .get();
 
                 final sessionData = sessionDoc.data() ?? {};
-                final mentorUid = sessionData['mentorId'] ?? sessionData['mentorUid'];
+                final mentorUid =
+                    sessionData['mentorId'] ?? sessionData['mentorUid'];
 
                 final batch = FirebaseFirestore.instance.batch();
 
@@ -311,21 +332,18 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
                 final sessionRef = FirebaseFirestore.instance
                     .collection('sessions')
                     .doc(widget.sessionId);
-                batch.set(
-                  sessionRef,
-                  {
-                    'minutesSpent': exactMinutesSpent,
-                    'tutorEarnedUSD': tutorEarnings,
-                    'endedAt': FieldValue.serverTimestamp(),
-                    'status': 'Completed',
-                  },
-                  SetOptions(merge: true),
-                );
+                batch.set(sessionRef, {
+                  'minutesSpent': exactMinutesSpent,
+                  'tutorEarnedUSD': tutorEarnings,
+                  'endedAt': FieldValue.serverTimestamp(),
+                  'status': 'Completed',
+                }, SetOptions(merge: true));
 
                 // 2. Pay the mentor proportionally
                 if (mentorUid != null) {
-                  final mentorRef =
-                      FirebaseFirestore.instance.collection('users').doc(mentorUid);
+                  final mentorRef = FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(mentorUid);
                   batch.update(mentorRef, {
                     'mentorEarningsUSD': FieldValue.increment(tutorEarnings),
                   });
@@ -335,13 +353,18 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
 
                 if (!mounted) return;
                 Navigator.pop(context); // Close dialog
-                Navigator.of(context).popUntil((route) => route.isFirst); // Exit classroom
+                Navigator.of(
+                  context,
+                ).popUntil((route) => route.isFirst); // Exit classroom
               } catch (e) {
                 debugPrint("Error settling classroom payment: $e");
                 if (mounted) Navigator.pop(context);
               }
             },
-            child: const Text("Yes", style: TextStyle(color: Colors.greenAccent)),
+            child: const Text(
+              "Yes",
+              style: TextStyle(color: Colors.greenAccent),
+            ),
           ),
         ],
       ),
@@ -360,7 +383,10 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
                 "Classroom: ${widget.roomName}",
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -369,7 +395,9 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
               decoration: BoxDecoration(
                 color: Colors.white10,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: Colors.greenAccent.withValues(alpha: 0.4),
+                ),
               ),
               child: Text(
                 "${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}",
@@ -392,7 +420,8 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text("End-to-end encrypted mentoring room active.")),
+                  content: Text("End-to-end encrypted mentoring room active."),
+                ),
               );
             },
           ),
@@ -444,7 +473,9 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
                 Text(
                   "Accrued Cost: \$${_totalCost.toStringAsFixed(4)}",
                   style: const TextStyle(
-                      color: Colors.greenAccent, fontWeight: FontWeight.bold),
+                    color: Colors.greenAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -527,8 +558,9 @@ class _VirtualClassroomScreenState extends State<VirtualClassroomScreen> {
                 // Screen Share Button
                 FloatingActionButton(
                   heroTag: "screen",
-                  backgroundColor:
-                      _isScreenSharing ? Colors.teal : Colors.grey[800],
+                  backgroundColor: _isScreenSharing
+                      ? Colors.teal
+                      : Colors.grey[800],
                   onPressed: () =>
                       setState(() => _isScreenSharing = !_isScreenSharing),
                   child: Icon(

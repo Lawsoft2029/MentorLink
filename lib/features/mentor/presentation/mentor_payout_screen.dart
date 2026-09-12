@@ -13,9 +13,11 @@ class MentorPayoutScreen extends StatefulWidget {
 
 class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
   String _selectedMethod = 'flutterwave'; // 'flutterwave' or 'crypto'
-  final TextEditingController _accountNumberController = TextEditingController();
+  final TextEditingController _accountNumberController =
+      TextEditingController();
   final TextEditingController _bankNameController = TextEditingController();
-  final TextEditingController _cryptoAddressController = TextEditingController();
+  final TextEditingController _cryptoAddressController =
+      TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   bool _isLoading = false;
 
@@ -32,7 +34,10 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a withdrawal amount."), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text("Please enter a withdrawal amount."),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -40,7 +45,10 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
     final double? requestedAmount = double.tryParse(amountText);
     if (requestedAmount == null || requestedAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a valid amount."), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text("Please enter a valid amount."),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -51,13 +59,16 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
 
-      final userDocRef = FirebaseFirestore.instance.collection('users').doc(uid);
-      
+      final userDocRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid);
+
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final snapshot = await transaction.get(userDocRef);
         if (!snapshot.exists) throw Exception("User record not found.");
 
-        double currentBalance = (snapshot.data()?['mentorEarningsUSD'] ?? 0.0).toDouble();
+        double currentBalance = (snapshot.data()?['mentorEarningsUSD'] ?? 0.0)
+            .toDouble();
 
         if (requestedAmount > currentBalance) {
           throw Exception("Insufficient earnings balance.");
@@ -83,14 +94,20 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Payout request submitted successfully!"), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("Payout request submitted successfully!"),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Payout failed: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Payout failed: $e"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -105,7 +122,10 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Mentor Payout & Earnings", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Mentor Payout & Earnings",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -116,16 +136,23 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
           children: [
             const Text(
               "Select Payout Method",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333697)),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF333697),
+              ),
             ),
             const SizedBox(height: 12),
-            
+
             // Method Toggle Selector
             Row(
               children: [
                 Expanded(
                   child: RadioListTile<String>(
-                    title: const Text("Flutterwave (Fiat)", style: TextStyle(fontSize: 13)),
+                    title: const Text(
+                      "Flutterwave (Fiat)",
+                      style: TextStyle(fontSize: 13),
+                    ),
                     value: 'flutterwave',
                     groupValue: _selectedMethod,
                     activeColor: primaryColor,
@@ -134,7 +161,10 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
                 ),
                 Expanded(
                   child: RadioListTile<String>(
-                    title: const Text("NOWPayments (Crypto)", style: TextStyle(fontSize: 13)),
+                    title: const Text(
+                      "NOWPayments (Crypto)",
+                      style: TextStyle(fontSize: 13),
+                    ),
                     value: 'crypto',
                     groupValue: _selectedMethod,
                     activeColor: primaryColor,
@@ -151,7 +181,9 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: "Withdrawal Amount (USD)",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 prefixIcon: const Icon(Icons.attach_money),
               ),
             ),
@@ -163,7 +195,9 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
                 controller: _bankNameController,
                 decoration: InputDecoration(
                   labelText: "Bank Name",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   prefixIcon: const Icon(Icons.account_balance),
                 ),
               ),
@@ -173,7 +207,9 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: "Account Number",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   prefixIcon: const Icon(Icons.numbers),
                 ),
               ),
@@ -182,7 +218,9 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
                 controller: _cryptoAddressController,
                 decoration: InputDecoration(
                   labelText: "USDT (TRC-20) Wallet Address",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   prefixIcon: const Icon(Icons.currency_bitcoin),
                 ),
               ),
@@ -196,14 +234,20 @@ class _MentorPayoutScreenState extends State<MentorPayoutScreen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _isLoading ? null : _processPayout,
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
                         "Request Payout",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
               ),
             ),

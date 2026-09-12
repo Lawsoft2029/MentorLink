@@ -41,8 +41,12 @@ class _SkillRoadmapScreenState extends State<SkillRoadmapScreen> {
           final List milestones = data['milestones'] ?? [];
 
           // Calculate progress percentage
-          int completedCount = milestones.where((m) => m['completed'] == true).length;
-          double progress = milestones.isEmpty ? 0 : completedCount / milestones.length;
+          int completedCount = milestones
+              .where((m) => m['completed'] == true)
+              .length;
+          double progress = milestones.isEmpty
+              ? 0
+              : completedCount / milestones.length;
 
           return Padding(
             padding: const EdgeInsets.all(20.0),
@@ -55,16 +59,25 @@ class _SkillRoadmapScreenState extends State<SkillRoadmapScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF333697).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: const Color(0xFF333697).withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: const Color(0xFF333697).withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Active Learning Track", style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      const Text(
+                        "Active Learning Track",
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         trackName,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333697)),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF333697),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       LinearProgressIndicator(
@@ -76,7 +89,11 @@ class _SkillRoadmapScreenState extends State<SkillRoadmapScreen> {
                       const SizedBox(height: 8),
                       Text(
                         "${(progress * 100).toInt()}% Completed ($completedCount of ${milestones.length} milestones)",
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF00796B)),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF00796B),
+                        ),
                       ),
                     ],
                   ),
@@ -84,7 +101,11 @@ class _SkillRoadmapScreenState extends State<SkillRoadmapScreen> {
                 const SizedBox(height: 24),
                 const Text(
                   "Curriculum Checkpoints",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333697)),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333697),
+                  ),
                 ),
                 const SizedBox(height: 12),
 
@@ -99,13 +120,17 @@ class _SkillRoadmapScreenState extends State<SkillRoadmapScreen> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         elevation: 1,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: CheckboxListTile(
                           title: Text(
                             milestone['title'],
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              decoration: isCompleted ? TextDecoration.lineThrough : null,
+                              decoration: isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : null,
                               color: isCompleted ? Colors.grey : Colors.black87,
                             ),
                           ),

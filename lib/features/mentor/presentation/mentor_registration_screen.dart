@@ -7,7 +7,8 @@ class MentorRegistrationScreen extends StatefulWidget {
   const MentorRegistrationScreen({super.key});
 
   @override
-  State<MentorRegistrationScreen> createState() => _MentorRegistrationScreenState();
+  State<MentorRegistrationScreen> createState() =>
+      _MentorRegistrationScreenState();
 }
 
 class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
@@ -46,10 +47,13 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
-        
+
         // Pre-populate controllers and states if values exist in the database
         if (data['expertiseTag'] != null) {
           _expertiseController.text = data['expertiseTag'];
@@ -57,11 +61,13 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
         if (data['bio'] != null) {
           _bioController.text = data['bio'];
         }
-        if (data['githubUrl'] != null && (data['githubUrl'] as String).isNotEmpty) {
+        if (data['githubUrl'] != null &&
+            (data['githubUrl'] as String).isNotEmpty) {
           _githubController.text = data['githubUrl'];
           _isGithubVerified = true;
         }
-        if (data['linkedinUrl'] != null && (data['linkedinUrl'] as String).isNotEmpty) {
+        if (data['linkedinUrl'] != null &&
+            (data['linkedinUrl'] as String).isNotEmpty) {
           _linkedinController.text = data['linkedinUrl'];
           _isLinkedinVerified = true;
         }
@@ -112,11 +118,17 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
     if (_githubController.text.trim().isNotEmpty) _isGithubVerified = true;
     if (_linkedinController.text.trim().isNotEmpty) _isLinkedinVerified = true;
 
-    if (!_formKey.currentState!.validate() || !_isGithubVerified || !_isLinkedinVerified || !_hasUploadedCert || !_agreedToTerms) {
+    if (!_formKey.currentState!.validate() ||
+        !_isGithubVerified ||
+        !_isLinkedinVerified ||
+        !_hasUploadedCert ||
+        !_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Colors.redAccent,
-          content: Text("Please satisfy all verification metrics before submission."),
+          content: Text(
+            "Please satisfy all verification metrics before submission.",
+          ),
         ),
       );
       return;
@@ -135,7 +147,7 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
           'githubUrl': _githubController.text.trim(),
           'linkedinUrl': _linkedinController.text.trim(),
           'connectionRatePerMin': _chargeRatePerMin,
-          'isApproved': true, 
+          'isApproved': true,
           'submittedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
@@ -148,7 +160,9 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Error: $e")));
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -179,7 +193,11 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
                   children: [
                     const Text(
                       "Become a Verified Mentor",
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
@@ -187,10 +205,16 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
                       decoration: InputDecoration(
                         labelText: "Primary Technical Domain / Expertise",
                         hintText: "e.g., Flutter Developer, Systems Engineer",
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.psychology, color: primaryColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.psychology,
+                          color: primaryColor,
+                        ),
                       ),
-                      validator: (value) => value!.isEmpty ? "Enter your domain focus" : null,
+                      validator: (value) =>
+                          value!.isEmpty ? "Enter your domain focus" : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -198,13 +222,26 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
                       maxLines: 3,
                       decoration: InputDecoration(
                         labelText: "Professional Biography Summary",
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.assignment, color: primaryColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.assignment,
+                          color: primaryColor,
+                        ),
                       ),
-                      validator: (value) => value!.isEmpty ? "Please write a brief description" : null,
+                      validator: (value) => value!.isEmpty
+                          ? "Please write a brief description"
+                          : null,
                     ),
                     const SizedBox(height: 24),
-                    const Text("Identity & Portfolio Validation", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Identity & Portfolio Validation",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     _verificationRow(
                       controller: _githubController,
@@ -226,24 +263,58 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
                       onTap: _simulateCertUpload,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 20,
+                          horizontal: 16,
+                        ),
                         decoration: BoxDecoration(
-                          color: _hasUploadedCert ? Colors.greenAccent.withValues(alpha: 0.1) : Colors.white,
+                          color: _hasUploadedCert
+                              ? Colors.greenAccent.withValues(alpha: 0.1)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _hasUploadedCert ? Colors.green : Colors.grey.shade300),
+                          border: Border.all(
+                            color: _hasUploadedCert
+                                ? Colors.green
+                                : Colors.grey.shade300,
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: _hasUploadedCert
-                              ? [const Icon(Icons.check_circle, color: Colors.green), const SizedBox(width: 8), const Text("Credential Sheet Verified (.PDF)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green))]
-                              : [const Icon(Icons.cloud_upload, color: primaryColor), const SizedBox(width: 8), const Text("Upload Engineering/Tech Certificate")],
+                              ? [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    "Credential Sheet Verified (.PDF)",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ]
+                              : [
+                                  const Icon(
+                                    Icons.cloud_upload,
+                                    color: primaryColor,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    "Upload Engineering/Tech Certificate",
+                                  ),
+                                ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
                     Text(
                       "Set Connection Charge Rate: \$${_chargeRatePerMin.toStringAsFixed(2)}/min",
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Slider(
                       value: _chargeRatePerMin,
@@ -252,15 +323,26 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
                       divisions: 19,
                       activeColor: primaryColor,
                       label: "\$${_chargeRatePerMin.toStringAsFixed(2)}/min",
-                      onChanged: (val) => setState(() => _chargeRatePerMin = val),
+                      onChanged: (val) =>
+                          setState(() => _chargeRatePerMin = val),
                     ),
                     const SizedBox(height: 16),
                     CheckboxListTile(
-                      title: const Text("Handshake Billing Agreement", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                      subtitle: const Text("I agree that billing only accumulates when sessions are active.", style: TextStyle(fontSize: 12)),
+                      title: const Text(
+                        "Handshake Billing Agreement",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        "I agree that billing only accumulates when sessions are active.",
+                        style: TextStyle(fontSize: 12),
+                      ),
                       value: _agreedToTerms,
                       activeColor: primaryColor,
-                      onChanged: (val) => setState(() => _agreedToTerms = val ?? false),
+                      onChanged: (val) =>
+                          setState(() => _agreedToTerms = val ?? false),
                       controlAffinity: ListTileControlAffinity.leading,
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -272,9 +354,18 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
                         onPressed: _submitRegistrationPortfolio,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        child: const Text("Submit Professional Profile", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: const Text(
+                          "Submit Professional Profile",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -299,7 +390,9 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
             enabled: !isVerified,
             decoration: InputDecoration(
               hintText: hint,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               prefixIcon: Icon(icon, color: const Color(0xFF00796B)),
             ),
           ),
@@ -308,11 +401,15 @@ class _MentorRegistrationScreenState extends State<MentorRegistrationScreen> {
         ElevatedButton(
           onPressed: isVerified ? null : onVerifyPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: isVerified ? Colors.green : const Color(0xFF00796B),
+            backgroundColor: isVerified
+                ? Colors.green
+                : const Color(0xFF00796B),
             foregroundColor: Colors.white,
             disabledBackgroundColor: Colors.green.shade600,
             disabledForegroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           child: isVerified ? const Icon(Icons.check) : const Text("Verify"),
         ),

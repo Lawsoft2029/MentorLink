@@ -3,7 +3,8 @@ import 'persona_verification_service.dart';
 
 class EnterpriseVerificationRouter {
   final DojahVerificationService _dojahService = DojahVerificationService();
-  final PersonaVerificationService _personaService = PersonaVerificationService();
+  final PersonaVerificationService _personaService =
+      PersonaVerificationService();
 
   Future<Map<String, dynamic>> verifyCompanyEntity({
     required String jurisdiction,
@@ -16,13 +17,15 @@ class EnterpriseVerificationRouter {
         companyName: companyName,
         registrationNumber: registrationNumber,
       );
-    } 
+    }
     // 2. Route to Persona if it's United States, UK, or International
     else {
       String countryCode = 'US'; // Default fallback
-      if (jurisdiction.contains('United Kingdom') || jurisdiction.contains('UK')) {
+      if (jurisdiction.contains('United Kingdom') ||
+          jurisdiction.contains('UK')) {
         countryCode = 'GB';
-      } else if (jurisdiction.contains('United States') || jurisdiction.contains('Delaware')) {
+      } else if (jurisdiction.contains('United States') ||
+          jurisdiction.contains('Delaware')) {
         countryCode = 'US';
       }
 

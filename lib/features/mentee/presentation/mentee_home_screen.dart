@@ -47,7 +47,10 @@ class _MenteeHomeScreenState extends State<MenteeHomeScreen> {
         type: BottomNavigationBarType.fixed, // Keeps labels visible
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.video_library), label: "Vault"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.video_library),
+            label: "Vault",
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.wallet), label: "Wallet"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
@@ -59,19 +62,24 @@ class _MenteeHomeScreenState extends State<MenteeHomeScreen> {
           // Navigate to the Live Session / Timer screen
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => LiveSessionScreen(sessionId: '', role: 'mentee')),
+            MaterialPageRoute(
+              builder: (context) =>
+                  LiveSessionScreen(sessionId: '', role: 'mentee'),
+            ),
           );
         },
         backgroundColor: Colors.redAccent,
         icon: const Icon(Icons.bolt, color: Colors.white),
-        label: const Text(" Help me debug", 
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: const Text(
+          " Help me debug",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
 }
 
-// We moved your original UI code into this "HomeContent" widget 
+// We moved your original UI code into this "HomeContent" widget
 // so it can be swapped out by the BottomNavigationBar
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});
@@ -90,7 +98,10 @@ class HomeContent extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text("Hello, Learner!", style: TextStyle(color: Colors.grey)),
+                    Text(
+                      "Hello, Learner!",
+                      style: TextStyle(color: Colors.grey),
+                    ),
                     Text(
                       "Find your Mentor",
                       style: TextStyle(
@@ -153,7 +164,7 @@ class HomeContent extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -165,7 +176,9 @@ class HomeContent extends StatelessWidget {
             children: [
               const CircleAvatar(
                 radius: 30,
-                backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+                backgroundImage: NetworkImage(
+                  'https://via.placeholder.com/150',
+                ),
               ),
               Positioned(
                 right: 0,
@@ -187,13 +200,22 @@ class HomeContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Engr. Samuel", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const Text("Flutter & IoT Expert", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                const Text(
+                  "Engr. Samuel",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const Text(
+                  "Flutter & IoT Expert",
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
                 const SizedBox(height: 5),
                 Row(
                   children: const [
                     Icon(Icons.star, color: Colors.orange, size: 14),
-                    Text(" 4.9 (120 reviews)", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    Text(
+                      " 4.9 (120 reviews)",
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
                   ],
                 ),
               ],
@@ -203,7 +225,10 @@ class HomeContent extends StatelessWidget {
             children: [
               const Text(
                 "₦50/sec",
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333697)),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333697),
+                ),
               ),
               const SizedBox(height: 8),
               ElevatedButton(
@@ -224,9 +249,14 @@ class HomeContent extends StatelessWidget {
                   backgroundColor: const Color(0xFF333697),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   minimumSize: const Size(60, 30),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text("Connect", style: TextStyle(fontSize: 12, color: Colors.white)),
+                child: const Text(
+                  "Connect",
+                  style: TextStyle(fontSize: 12, color: Colors.white),
+                ),
               ),
             ],
           ),
